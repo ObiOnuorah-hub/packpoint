@@ -1,14 +1,16 @@
 -- ==============================================================================
 -- PACKPOINT DATABASE SCHEMA (MySQL / MariaDB)
 -- ==============================================================================
--- Dit bestand maakt de database 'packpoint' aan, met alle tabellen en testgegevens.
+-- Dit bestand maakt alle tabellen aan en vult ze met testgegevens.
 --
 -- ZO IMPORTEER JE HEM:
---   1. Start Apache en MySQL in het XAMPP Control Panel
---   2. Ga naar http://localhost/phpmyadmin
+--   1. Maak eerst een lege database aan
+--      - lokaal (XAMPP): in phpMyAdmin, met de naam 'packpoint'
+--      - op PLESK: via 'Databases' > 'Database toevoegen'
+--   2. Klik in phpMyAdmin links op die database
 --   3. Klik bovenaan op 'Importeren', kies dit bestand en klik op 'Starten'
 --
--- Wil je opnieuw beginnen? Verwijder dan eerst de database 'packpoint' in phpMyAdmin.
+-- Wil je opnieuw beginnen? Maak de database dan eerst leeg (alle tabellen verwijderen).
 --
 -- RELATIES TUSSEN DE TABELLEN (foreign keys):
 --
@@ -16,11 +18,6 @@
 --   users (1) ──────< parcels.received_by_user_id  een medewerker kan meerdere pakketten innemen
 --   carriers (1) ───< parcels.carrier_id           een vervoerder brengt meerdere pakketten
 --   storage_slots (1) < parcels.storage_slot_id    een pakket ligt in 1 opslagvak
-
-
--- Maak de database aan (als die nog niet bestaat) en ga hem gebruiken
-CREATE DATABASE IF NOT EXISTS packpoint CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE packpoint;
 
 
 -- ------------------------------------------------------------------------------

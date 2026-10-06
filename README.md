@@ -12,13 +12,15 @@ Gebouwd met **PHP 8**, **MySQL (MariaDB)**, **PDO** en **Tailwind CSS**.
 1. Zorg dat **XAMPP** is geïnstalleerd (op `C:\xampp` of `D:\xampp`).
 2. **Database importeren (alleen de eerste keer):**
    - Start Apache en MySQL in het XAMPP Control Panel.
-   - Ga naar <http://localhost/phpmyadmin>, klik op **Importeren** en kies `sql/schema.sql`.
-   - Dit maakt de database `packpoint` aan met alle tabellen en testgegevens.
+   - Ga naar <http://localhost/phpmyadmin> en maak een lege database `packpoint` aan.
+   - Klik links op `packpoint`, dan op **Importeren** en kies `sql/schema.sql`.
+     Dit maakt alle tabellen en testgegevens aan.
 3. Dubbelklik op **`Start-PackPoint.bat`**.
    - MySQL wordt gestart (als die nog niet draait).
    - De PHP-webserver start op <http://localhost:8000>.
 
 > Database-instellingen (gebruiker, wachtwoord) staan in `includes/config.php`.
+> Online zetten op PLESK? Zie [docs/installatie-plesk.md](docs/installatie-plesk.md).
 
 ### Testaccounts
 

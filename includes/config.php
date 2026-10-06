@@ -16,6 +16,9 @@
 // 1. DATABASE (MySQL)
 // ------------------------------------------------------------------------------
 // Dit zijn de standaard XAMPP instellingen: gebruiker 'root' zonder wachtwoord.
+//
+// OP PLESK: vul hier de gegevens in van de database die je in Plesk hebt aangemaakt.
+// Doe dit ALLEEN in het bestand op de server, NIET in GitHub (anders staat je wachtwoord online).
 
 // Op welke computer draait MySQL? (127.0.0.1 = deze computer)
 const DB_HOST = '127.0.0.1';
