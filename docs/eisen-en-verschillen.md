@@ -1,10 +1,10 @@
-# Functies, eisen en verschillen
+# Functies, eisen en wat er anders is 🧩
 
-Dit document laat zien:
-1. bij welke **eis**, welk **deel van het ontwerp** en welke **taak** elke gebouwde functie hoort
-2. waar het opgeleverde product **anders** is dan de eisen of het ontwerp, en waarom
+Hier zie je:
+1. bij welke **eis**, welk stukje van het **ontwerp** en welke **taak** elke functie hoort
+2. waar het eindproduct **anders** is dan de eisen of het ontwerp, en waarom
 
-> **Let op:** vul in de kolom *Taak* het nummer in uit je eigen planning (bijv. `T05`).
+> **Let op:** vul in de kolom *Taak* het nummer uit je eigen planning in (bijv. `T05`).
 
 ---
 
@@ -46,19 +46,19 @@ Dit document laat zien:
 
 ---
 
-## 2. Verschillen tussen eisen, ontwerp en product
+## 2. Wat is er anders dan de eisen of het ontwerp?
 
-| #  | Verschil                                                            | Waarom                                                                                                  |
+| #  | Wat is anders                                                       | Waarom                                                                                                  |
 |----|---------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| V1 | Er is een derde rol: **Admin**                                      | De briefing noemt alleen klant en baliemedewerker. De rollenlijst van de opdracht vraagt ook een admin voor gebruikersbeheer. De admin kan alles wat een medewerker kan. |
-| V2 | Extra status **Retour vervoerder**                                  | De rollenlijst vraagt "status aanpassen". Een pakket dat te lang ligt, moet terug naar de vervoerder. Daarna is het vak weer vrij. |
-| V3 | **Verwachte pakketten** worden door de medewerker aangemeld         | Een koppeling met de vervoerder (API) is volgens de briefing niet nodig. De medewerker meldt het pakket daarom zelf aan als "Verwacht". |
-| V4 | De **afhaalcode** is pas zichtbaar als het pakket binnen is         | Zo komt een klant niet naar de balie voor een pakket dat er nog niet is.                                |
-| V5 | De klant kan zijn **e-mailadres niet zelf wijzigen**                | De pakketten zijn aan het e-mailadres gekoppeld. Wijzigen kan via de balie.                             |
-| V6 | De **testaccounts** staan op de loginpagina                         | Handig voor het beoordelen. Bij echt gebruik moet dit blok weg (er staat een comment in `login.php`).    |
-| V7 | **Tailwind CSS** wordt via internet geladen (CDN)                   | Geen installatie nodig. Zonder internet ziet de site er zonder opmaak uit.                              |
+| V1 | Er is een derde rol: **Admin**                                      | De briefing noemt alleen klant en balie, maar de rollenlijst van de opdracht wil ook een admin voor gebruikersbeheer. De admin kan alles wat de balie kan. |
+| V2 | Extra status **Retour vervoerder**                                  | De rollenlijst vraagt "status aanpassen". Ligt een pakket te lang? Dan gaat het terug naar de vervoerder en is het vak weer vrij. |
+| V3 | **Verwachte pakketten** meldt de balie zelf aan                     | Een koppeling met de vervoerder (API) hoeft volgens de briefing nog niet. Dus de balie zet het pakket zelf op "Verwacht". |
+| V4 | De **afhaalcode** zie je pas als het pakket binnen is               | Anders loopt een klant naar de balie voor een pakket dat er nog niet is.                                |
+| V5 | De klant kan zijn **e-mailadres niet zelf aanpassen**               | De pakketten hangen aan dat e-mailadres. Aanpassen kan via de balie.                                    |
+| V6 | De **testaccounts** staan op de loginpagina                         | Handig bij het nakijken. Als de app echt gebruikt wordt, moet dit blok weg (staat een comment bij in `login.php`). |
+| V7 | **Tailwind CSS** komt via internet (CDN)                            | Hoef je niks voor te installeren. Zonder internet ziet de site er wel kaal uit.                         |
 
-### Bekende beperkingen (niet gevraagd in de eerste versie)
-- De klant krijgt **geen e-mail** als zijn pakket binnen is.
-- Bij registreren wordt het **e-mailadres niet gecontroleerd** (geen bevestigingsmail).
-- Er is **geen limiet** op het aantal inlogpogingen.
+### Wat er (nog) niet in zit (was ook niet gevraagd voor de eerste versie)
+- De klant krijgt **geen mailtje** als zijn pakket binnen is.
+- Bij registreren wordt het **e-mailadres niet gecheckt** (geen bevestigingsmail).
+- Er is **geen limiet** op hoe vaak je mag proberen in te loggen.
