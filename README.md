@@ -235,3 +235,17 @@ en aan `status_badge()` in `includes/functions.php`.
 | Meldingen bij succes, fout, lege lijst, niet toegestaan | `set_flash()` + lege-lijst-teksten op elke pagina          |
 | Werkt op telefoon, tablet en computer                  | Tailwind responsive classes + uitklapmenu op mobiel         |
 | Kleuren #0C4A6E, #38BDF8, #FBBF24, #F8FAFC             | `brand`-kleuren in `includes/header.php`                    |
+
+---
+
+## 11. Versie en inleveren
+
+**Definitieve versie:** tag `v1.0` op branch `main`.
+
+| Document                                                         | Waarvoor                                              |
+|------------------------------------------------------------------|-------------------------------------------------------|
+| [docs/installatie-plesk.md](docs/installatie-plesk.md)           | De app online zetten op PLESK                         |
+| [docs/eisen-en-verschillen.md](docs/eisen-en-verschillen.md)     | Functie → eis → ontwerp → taak, en de verschillen     |
+| [docs/checklist-controle.md](docs/checklist-controle.md)         | Alle checklistpunten met bewijs                       |
+| [docs/demo-draaiboek.md](docs/demo-draaiboek.md)                 | Script voor het demofilmpje (max. 3 minuten)          |
+| [github.txt](github.txt)                                         | Publieke link naar de code op GitHub                  |
