@@ -1,6 +1,6 @@
 # PackPoint 📦
 
-Yo! Dit is **PackPoint**, een webapp voor een buurtwinkel die pakketjes aanneemt.
+Dit is **PackPoint**, een webapp voor een buurtwinkel die pakketjes aanneemt.
 Pakket komt binnen → gaat in een vakje → klant haalt het op met een afhaalcode. Simpel.
 
 Gemaakt met **PHP 8**, **MySQL (MariaDB)**, **PDO** en **Tailwind CSS**.
@@ -234,16 +234,3 @@ en in `status_badge()` in `includes/functions.php`.
 | Werkt op telefoon, tablet en computer                   | Tailwind responsive classes + uitklapmenu op mobiel         |
 | Kleuren #0C4A6E, #38BDF8, #FBBF24, #F8FAFC              | `brand`-kleuren in `includes/header.php`                    |
 
----
-
-## 11. Versie en inleveren
-
-**Definitieve versie:** tag `v1.3` op branch `main`.
-
-| Document                                                         | Waar is het voor?                                     |
-|------------------------------------------------------------------|-------------------------------------------------------|
-| [docs/installatie-plesk.md](docs/installatie-plesk.md)           | De app online zetten op PLESK                         |
-| [docs/eisen-en-verschillen.md](docs/eisen-en-verschillen.md)     | Functie → eis → ontwerp → taak, en wat er anders is   |
-| [docs/checklist-controle.md](docs/checklist-controle.md)         | Alle checklistpunten met bewijs                       |
-| [docs/demo-draaiboek.md](docs/demo-draaiboek.md)                 | Script voor het demofilmpje (max. 3 minuten)          |
-| [github.txt](github.txt)                                         | De link naar deze GitHub                              |
