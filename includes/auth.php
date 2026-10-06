@@ -5,6 +5,15 @@
 // Dit bestand heeft 2 delen:
 //   DEEL 1: sessiebeheer (veilige sessie, meldingen, CSRF-beveiliging)
 //   DEEL 2: inloggen, uitloggen, rollen en rechten
+//
+// UITLEG VOOR IEDEREEN:
+//   - Een SESSIE is het geheugen van de website voor 1 bezoeker. Zo weet de website
+//     bij elke nieuwe pagina nog steeds wie er is ingelogd (net als een armbandje
+//     dat je bij de ingang van een festival krijgt).
+//   - Een ROL is wat je mag: klant, baliemedewerker of beheerder.
+//   - Een WACHTWOORD slaan we nooit op. We slaan alleen een 'hash' op: een onleesbare
+//     versie van het wachtwoord, die je niet kunt terugdraaien.
+//   - Een COOKIE is een klein bestandje in je browser. Daar staat je 'armbandje' in.
 
 // ==============================================================================
 // DEEL 1: SESSIEBEHEER
@@ -20,7 +29,8 @@
 // Start de sessie met veilige instellingen
 function start_secure_session(): void
 {
-    // Is de sessie al gestart? Dan hoeven we niks te doen
+    // Is de sessie al gestart? Dan hoeven we niks te doen.
+    // 'return' zonder iets erachter betekent: "stop hier met deze functie".
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
@@ -52,17 +62,18 @@ function start_secure_session(): void
 // Zet een melding klaar
 function set_flash(string $type, string $bericht): void
 {
-    // Voeg de melding toe aan het lijstje in de sessie
+    // $_SESSION is het geheugen van deze bezoeker.
+    // De [] erachter betekent: "zet dit onderaan in het lijstje" (er kunnen meerdere meldingen zijn).
     $_SESSION['flash'][] = ['type' => $type, 'message' => $bericht];
 }
 
 // Haal alle meldingen op en gooi ze daarna weg (zodat ze maar 1 keer verschijnen)
 function get_flashes(): array
 {
-    // Pak de meldingen (of een lege lijst als er geen zijn)
+    // Pak de meldingen. De '?? []' betekent: "zijn er geen? Neem dan een lege lijst".
     $meldingen = $_SESSION['flash'] ?? [];
 
-    // Verwijder ze uit de sessie
+    // Verwijder ze uit het geheugen (unset = weggooien), anders zie je ze elke keer weer
     unset($_SESSION['flash']);
 
     // Geef ze terug zodat header.php ze kan laten zien
@@ -99,9 +110,11 @@ function check_csrf(): void
     // Welke code stuurde het formulier mee?
     $meegestuurd = $_POST['csrf_token'] ?? '';
 
-    // hash_equals vergelijkt veilig (even snel bij goed en fout, zo kun je niks raden)
+    // Vergelijk de meegestuurde code met de code die wij hebben onthouden.
+    // (hash_equals is een extra veilige manier om twee teksten te vergelijken.)
+    // Het uitroepteken betekent "NIET": dus "als de codes NIET gelijk zijn...".
     if (!hash_equals(csrf_token(), $meegestuurd)) {
-        // Code klopt niet: stop direct
+        // Code klopt niet: stop direct. 400 is de internetcode voor "foute aanvraag".
         http_response_code(400);
         exit('Ongeldig formulier. Ga terug, vernieuw de pagina en probeer het opnieuw.');
     }
@@ -118,9 +131,9 @@ function check_csrf(): void
 // HOE WERKT INLOGGEN?
 //   1. Gebruiker vult gebruikersnaam + wachtwoord in op login.php
 //   2. login() zoekt de gebruiker op in de database
-//   3. password_verify() checkt of het wachtwoord bij de opgeslagen hash past
+//   3. password_verify() controleert of het wachtwoord bij de opgeslagen hash past
 //   4. Klopt het? Dan zetten we het user_id in de sessie
-//   5. Elke pagina roept require_role() aan om te checken of je er mag komen
+//   5. Elke pagina roept require_role() aan om te controleren of je er mag komen
 
 // ------------------------------------------------------------------------------
 // 1. DE ROLLEN
@@ -136,17 +149,21 @@ const ROLES = [
 // Geeft de nette naam van een rol, bijv. 'employee' wordt 'Baliemedewerker'
 function role_label(string $rol): string
 {
+    // Zoek de rol op in de lijst hierboven. Staat hij er niet in? Dan geven we de rol zelf terug.
     return ROLES[$rol] ?? $rol;
 }
 
 // Geeft een gekleurd labeltje voor een rol (geel = admin, blauw = medewerker, grijs = klant)
 function role_badge(string $rol): string
 {
+    // Kies de kleur bij de rol (een keuzelijst: "als de rol dit is, dan deze kleur")
     $kleur = match ($rol) {
         'admin'    => 'bg-amber-100 text-amber-900',
         'employee' => 'bg-sky-100 text-sky-900',
         default    => 'bg-slate-100 text-slate-700',
     };
+
+    // Maak er een klein gekleurd labeltje van. h() maakt de tekst veilig om te tonen.
     return '<span class="badge ' . $kleur . '">' . h(role_label($rol)) . '</span>';
 }
 
@@ -167,8 +184,12 @@ function redirect_to_dashboard(): void
     // Haal de ingelogde gebruiker op
     $gebruiker = current_user();
 
-    // Stuur door naar het juiste dashboard (of naar login als niemand is ingelogd)
+    // Stuur door naar het juiste dashboard. Dit stukje lees je zo:
+    //   is er een gebruiker?  ja  -> dashboard van zijn rol
+    //                         nee -> de loginpagina
     header('Location: ' . ($gebruiker ? dashboard_url($gebruiker['role']) : '/login.php'));
+
+    // Stop dit script meteen
     exit;
 }
 
@@ -194,7 +215,7 @@ function menu_items(string $rol): array
 
     // De admin krijgt er nog extra beheer-knoppen bij
     if ($rol === 'admin') {
-        // Admin dashboard als eerste knop in het menu
+        // Admin dashboard als eerste knop in het menu (het + plakt twee lijstjes aan elkaar)
         $menu = ['/admin/dashboard.php' => '👑 Admin Dashboard'] + $menu;
         $menu['/admin/users.php'] = 'Gebruikers';
         $menu['/admin/slots_manage.php'] = 'Vakken Beheer';
@@ -215,12 +236,13 @@ function login(string $inlognaam, string $wachtwoord): bool
     // Zoek de gebruiker op gebruikersnaam of e-mailadres
     $gebruiker = find_user_by_login($inlognaam);
 
-    // Bestaat de gebruiker niet? Dan stoppen we
+    // Bestaat de gebruiker niet? Dan stoppen we met 'false' ("inloggen mislukt").
+    // (We zeggen bewust niet of de naam of het wachtwoord fout is, anders weet een hacker welke namen bestaan.)
     if (!$gebruiker) {
         return false;
     }
 
-    // Check of het wachtwoord past bij de opgeslagen hash
+    // Controleer of het wachtwoord past bij de opgeslagen hash
     // (password_verify hasht het ingevulde wachtwoord en vergelijkt de uitkomst)
     if (!password_verify($wachtwoord, $gebruiker['password_hash'])) {
         return false;
@@ -239,7 +261,7 @@ function login(string $inlognaam, string $wachtwoord): bool
 // Logt de gebruiker uit
 function logout(): void
 {
-    // Maak alle sessiegegevens leeg
+    // Maak alle sessiegegevens leeg ([] is een lege lijst). Zo weet de website niet meer wie je was.
     $_SESSION = [];
 
     // Geef de bezoeker een nieuw, leeg sessie-ID
@@ -253,7 +275,8 @@ function logout(): void
 // Geeft de gegevens van de ingelogde gebruiker, of null als niemand is ingelogd
 function current_user(): ?array
 {
-    // Staat er geen user_id in de sessie? Dan is niemand ingelogd
+    // Staat er geen user_id in de sessie? Dan is niemand ingelogd.
+    // (isset = "bestaat dit en is het niet leeg?")
     if (!isset($_SESSION['user_id'])) {
         return null;
     }
@@ -299,16 +322,18 @@ function require_login(): void
 // Stuurt je weg als je niet de juiste rol hebt
 function require_role(string|array $toegestane_rollen): void
 {
-    // Eerst checken of je überhaupt bent ingelogd
+    // Eerst controleren of je überhaupt bent ingelogd
     require_login();
 
-    // Maak er altijd een lijstje van (ook als er 1 rol als tekst is meegegeven)
+    // Maak er altijd een lijstje van (ook als er maar 1 rol is meegegeven, bijv. 'admin').
+    // Zo kunnen we hieronder altijd op dezelfde manier zoeken.
     $toegestane_rollen = (array) $toegestane_rollen;
 
     // Welke rol heeft de ingelogde gebruiker?
     $rol = current_user()['role'];
 
-    // Staat jouw rol niet in het lijstje? Dan mag je hier niet komen
+    // Staat jouw rol niet in het lijstje? Dan mag je hier niet komen.
+    // (in_array = "staat dit in de lijst?", het uitroepteken ervoor betekent "NIET")
     if (!in_array($rol, $toegestane_rollen, true)) {
         set_flash('error', 'Je hebt geen rechten om die pagina te bekijken.');
         redirect_to_dashboard();

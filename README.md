@@ -20,7 +20,7 @@ Gemaakt met **PHP 8**, **MySQL (MariaDB)**, **PDO** en **Tailwind CSS**.
    - De site opent op <http://localhost:8000>.
 
 > Database-wachtwoord en zo staan in `includes/config.php`.
-> Wil je hem online zetten op PLESK? Check [docs/installatie-plesk.md](docs/installatie-plesk.md).
+> Wil je hem online zetten op PLESK? Kijk in [docs/installatie-plesk.md](docs/installatie-plesk.md).
 
 ### Testaccounts om mee te spelen
 
@@ -41,7 +41,7 @@ packpoint/
 │   ├── config.php            Instellingen (database, 7 dagen afhaaltermijn) + get_db()
 │   ├── auth.php              Deel 1: sessie, meldingen, CSRF
 │   │                         Deel 2: inloggen, uitloggen, rollen, menu, wie mag waar komen
-│   ├── functions.php         Deel 1: handige hulpjes (h(), format_date(), checks)
+│   ├── functions.php         Deel 1: handige hulpjes (h(), format_date(), controles)
 │   │                         Deel 2-5: alle SQL voor gebruikers, vervoerders, vakken, pakketten
 │   ├── header.php            Bovenkant van elke pagina (menu zie je pas als je bent ingelogd)
 │   └── footer.php            Onderkant van elke pagina
@@ -64,7 +64,7 @@ en je springt zo naar gebruikers, vervoerders, vakken of pakketten.
 
 1. Je typt je gebruikersnaam (of e-mail) en wachtwoord op `login.php`.
 2. `login()` in `includes/auth.php` zoekt je op met `find_user_by_login()`.
-3. `password_verify()` checkt je wachtwoord tegen de **bcrypt-hash** in de database.
+3. `password_verify()` controleert je wachtwoord tegen de **bcrypt-hash** in de database.
    Je echte wachtwoord staat nergens, alleen een hash.
 4. Klopt het? Dan krijg je een **nieuw sessie-ID** (`session_regenerate_id`) en
    onthouden we alleen je `user_id`.
@@ -122,7 +122,7 @@ Welke knoppen je in het menu ziet, staat in `menu_items()` in `includes/auth.php
 - **Zoeken**: `search_parcels($zoekterm, $status)` zoekt op afhaalcode, barcode, naam,
   e-mail en vak, en filtert op status (standaard: verwacht + binnen).
 - **Afhaalcode**: `generate_pickup_code()` maakt iets als `PK-7X9B` met `random_int()`,
-  dus niet te raden. En hij is altijd uniek (de database checkt dat ook met `UNIQUE`).
+  dus niet te raden. En hij is altijd uniek (de database controleert dat ook met `UNIQUE`).
 - **Barcode** (track & trace) is ook uniek. Twee keer hetzelfde pakket registreren? Nope.
 - **Te lang liggen**: na `PICKUP_DAYS` (7) dagen komt het pakket op `employee/overdue.php`.
 - Registreren, ontvangen, uitgeven, retour en verplaatsen gaan in een **transactie**:
@@ -136,7 +136,7 @@ Alle code hiervoor: `includes/functions.php`, kopje **DEEL 5: PAKKETTEN**.
 
 - Elk vak heeft een code (`A-01`) en hoort bij een stelling (`Stelling A`).
 - Een vak is `free` (vrij) of `occupied` (bezet). Er past maar één pakket in.
-- Voordat er een pakket in gaat, checkt `is_slot_free()` of het vak echt vrij is.
+- Voordat er een pakket in gaat, controleert `is_slot_free()` of het vak echt vrij is.
   Daarna zet `set_slot_status()` hem op `occupied`.
 - Admins maken nieuwe vakken via **Vakken Beheer**. De balie ziet alles in het raster
   bij **Opslagvakken** en kan een pakket verplaatsen via **Beheren**.
@@ -180,13 +180,13 @@ Alle code hiervoor: `includes/functions.php`, kopje **DEEL 4: OPSLAGVAKKEN**.
 
 | Wat                      | Hoe                                                                   |
 |--------------------------|-----------------------------------------------------------------------|
-| Wachtwoorden             | Gehasht met `password_hash()`, gecheckt met `password_verify()`        |
+| Wachtwoorden             | Gehasht met `password_hash()`, gecontroleerd met `password_verify()`        |
 | SQL injection            | Alleen prepared statements (`?`), echte prepares (`ATTR_EMULATE_PREPARES = false`) |
 | XSS                      | Alles wat op het scherm komt gaat door `h()` (`htmlspecialchars`)     |
-| CSRF                     | `csrf_field()` in elk formulier, `init.php` checkt het automatisch    |
+| CSRF                     | `csrf_field()` in elk formulier, `init.php` controleert het automatisch    |
 | Rollen                   | `require_role()` bovenaan elke pagina                                 |
 | Sessie                   | HttpOnly + SameSite cookie, strict mode, nieuw ID na inloggen          |
-| Invoer checken           | `validate_*()` functies op de server (HTML `required` is alleen extra) |
+| Invoer controleren           | `validate_*()` functies op de server (HTML `required` is alleen extra) |
 
 ---
 
@@ -225,7 +225,7 @@ en in `status_badge()` in `includes/functions.php`.
 | Balie: zoeken op code, klant, vak en status             | `employee/dashboard.php` (zoekbalk + statusfilter)          |
 | Max. één actief pakket per vak                          | `is_slot_free()` + `storage_slots.status`                   |
 | Afhaalcodes niet te raden                               | `generate_pickup_code()` met `random_int()`                 |
-| Elke pakketcode en afhaalcode uniek                     | `UNIQUE` in de database + check in PHP                      |
+| Elke pakketcode en afhaalcode uniek                     | `UNIQUE` in de database + controle in PHP                      |
 | Pakketten die te lang liggen opvallen                   | `employee/overdue.php`                                      |
 | Niet het verkeerde pakket meegeven (afhaalcontrole)     | `employee/verify_pickup.php`                                |
 | Vakkenraster                                            | `employee/slots.php`                                        |

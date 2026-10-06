@@ -60,5 +60,5 @@ Hier zie je:
 
 ### Wat er (nog) niet in zit (was ook niet gevraagd voor de eerste versie)
 - De klant krijgt **geen mailtje** als zijn pakket binnen is.
-- Bij registreren wordt het **e-mailadres niet gecheckt** (geen bevestigingsmail).
+- Bij registreren wordt het **e-mailadres niet gecontroleerd** (geen bevestigingsmail).
 - Er is **geen limiet** op hoe vaak je mag proberen in te loggen.

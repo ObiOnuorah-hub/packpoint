@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $gebruikersnaam = trim($_POST['username'] ?? '');
     $wachtwoord = $_POST['password'] ?? '';
 
-    // Check of beide velden zijn ingevuld
+    // Controleer of beide velden zijn ingevuld
     if ($gebruikersnaam === '' || $wachtwoord === '') {
         set_flash('error', 'Vul je gebruikersnaam en wachtwoord in.');
     }

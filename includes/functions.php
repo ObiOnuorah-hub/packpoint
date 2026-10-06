@@ -11,6 +11,29 @@
 //
 // LET OP: we gebruiken ALTIJD prepared statements met ? in de query.
 // De waarden gaan los naar de database, dus SQL injection is niet mogelijk.
+//
+// ------------------------------------------------------------------------------
+// LEESHULP: ZO LEES JE DIT BESTAND ALS JE NIKS VAN CODE WEET
+// ------------------------------------------------------------------------------
+// Een FUNCTIE is een klein programmaatje met een naam. Je roept hem aan als je
+//   hem nodig hebt. Voorbeeld: find_parcel(5) betekent "zoek pakket nummer 5".
+// Een VARIABELE begint met een $ en is een doosje waar iets in zit.
+//   Voorbeeld: $pakket is het doosje met alle gegevens van 1 pakket.
+// De DATABASE is een grote digitale kast met tabellen (zoals Excel).
+//   In de tabel 'parcels' staan alle pakketten, in 'users' alle gebruikers.
+// SQL is de taal waarmee je de database iets vraagt.
+//   SELECT = "geef mij"      INSERT = "voeg toe"
+//   UPDATE = "pas aan"       DELETE = "verwijder"
+// Een ? in een SQL-opdracht is een LEGE PLEK. De echte waarde wordt er apart
+//   in gestopt. Dat is veilig: een hacker kan zo geen eigen opdrachten verstoppen.
+// 'null' betekent "niks" of "bestaat niet". Een functie die null teruggeeft,
+//   zegt dus: "ik heb niks gevonden".
+// 'return' betekent "dit is mijn antwoord" en daarmee stopt de functie.
+// Een TRANSACTIE is een pakketje van acties dat samen slaagt of samen mislukt.
+//   Net als bij een pinbetaling: of het geld gaat er helemaal af, of niet.
+// 'status' vertelt waar een pakket is in zijn reis:
+//   expected = verwacht (nog onderweg)      arrived = binnen, ligt in een vak
+//   picked_up = opgehaald door de klant      returned = terug naar de vervoerder
 
 // ==============================================================================
 // DEEL 1: ALGEMENE HULPFUNCTIES
@@ -34,6 +57,8 @@ function h(?string $tekst): string
 // Handig bij een foutmelding: dan hoeft de gebruiker niet alles opnieuw te typen.
 function old(string $veldnaam): string
 {
+    // $_POST is alles wat de gebruiker net in het formulier heeft ingevuld.
+    // Is dat veld leeg of niet verstuurd? Dan nemen we een lege tekst ('').
     return h($_POST[$veldnaam] ?? '');
 }
 
@@ -43,8 +68,10 @@ function redirect_with_message(string $adres, string $type, string $bericht): vo
     // Zet de melding klaar voor de volgende pagina
     set_flash($type, $bericht);
 
-    // Stuur door en stop dit script
+    // Zeg tegen de browser: "ga naar een andere pagina" (header Location = doorverwijzing)
     header('Location: ' . $adres);
+
+    // Stop dit script meteen. Alles hieronder wordt niet meer uitgevoerd.
     exit;
 }
 
@@ -60,7 +87,8 @@ function format_date(?string $datum): string
         return '-';
     }
 
-    // Zet om naar dag-maand-jaar uur:minuut
+    // De database geeft een datum als 2026-10-05 14:30:00.
+    // strtotime leest die datum, en date() maakt er 05-10-2026 14:30 van (dag-maand-jaar uur:minuut).
     return date('d-m-Y H:i', strtotime($datum));
 }
 
@@ -72,7 +100,7 @@ function format_date(?string $datum): string
 // Is dit een geldig e-mailadres? (bijv. naam@voorbeeld.nl)
 function is_valid_email(string $email): bool
 {
-    // filter_var is de ingebouwde PHP-check voor e-mailadressen
+    // filter_var is de ingebouwde PHP-controle voor e-mailadressen
     return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
 }
 
@@ -84,7 +112,10 @@ function is_valid_phone(string $telefoon): bool
         return true;
     }
 
-    // Alleen cijfers, spaties, + en -, en tussen de 6 en 20 tekens
+    // preg_match controleert of de tekst past op een "patroon":
+    //   [0-9+\-\s] = alleen cijfers, een plus, een min of een spatie
+    //   {6,20}     = tussen de 6 en 20 tekens lang
+    // Past de tekst op het patroon? Dan geeft preg_match 1 terug.
     return preg_match('/^[0-9+\-\s]{6,20}$/', $telefoon) === 1;
 }
 
@@ -95,7 +126,7 @@ function is_too_long(string $tekst, int $maximaal): bool
     return mb_strlen($tekst) > $maximaal;
 }
 
-// Checkt naam, e-mail en telefoon in 1 keer.
+// Controleert naam, e-mail en telefoon in 1 keer.
 // Geeft een foutmelding terug, of null als alles goed is.
 function validate_contact_details(string $naam, string $email, string $telefoon): ?string
 {
@@ -123,7 +154,7 @@ function validate_contact_details(string $naam, string $email, string $telefoon)
     return null;
 }
 
-// Checkt of een nieuw wachtwoord goed genoeg is.
+// Controleert of een nieuw wachtwoord goed genoeg is.
 // $herhaling is het 'bevestig wachtwoord' veld (laat weg als het formulier dat niet heeft).
 // Geeft een foutmelding terug, of null als het wachtwoord goed is.
 function validate_new_password(string $wachtwoord, ?string $herhaling = null): ?string
@@ -159,7 +190,7 @@ const USER_COLUMNS = 'id, username, name, email, phone, role, created_at';
 // ------------------------------------------------------------------------------
 
 // Zoekt een gebruiker op gebruikersnaam OF e-mailadres (voor het inloggen)
-// Deze functie geeft WEL de password_hash mee, want die is nodig om het wachtwoord te checken.
+// Deze functie geeft WEL de password_hash mee, want die is nodig om het wachtwoord te controleren.
 function find_user_by_login(string $inlognaam): ?array
 {
     // Haal spaties weg aan het begin en eind
@@ -169,15 +200,21 @@ function find_user_by_login(string $inlognaam): ?array
     $query = get_db()->prepare('SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1');
     $query->execute([$inlognaam, $inlognaam]);
 
-    // Gevonden? Geef de rij terug. Niet gevonden? Geef null terug.
+    // fetch() pakt de eerste gevonden rij uit de database.
+    // Het stukje '?: null' betekent: "is er niks gevonden? Geef dan null (niks) terug".
     return $query->fetch() ?: null;
 }
 
 // Zoekt een gebruiker op ID (zonder wachtwoord-hash)
 function find_user_by_id(int $id): ?array
 {
+    // Stap 1: maak de opdracht klaar (het ? is een lege plek voor het ID)
     $query = get_db()->prepare('SELECT ' . USER_COLUMNS . ' FROM users WHERE id = ?');
+
+    // Stap 2: voer de opdracht uit en stop het ID in de lege plek
     $query->execute([$id]);
+
+    // Stap 3: geef de gevonden gebruiker terug, of null als die niet bestaat
     return $query->fetch() ?: null;
 }
 
@@ -234,12 +271,17 @@ function make_unique_username(string $email): string
     $nummer = 2;
     $query = get_db()->prepare('SELECT COUNT(*) FROM users WHERE username = ?');
 
-    // Zolang de naam al bestaat, plakken we er een hoger nummer achter
+    // 'while (true)' is een herhaling die doorgaat tot we zelf 'return' zeggen.
     while (true) {
+        // Kijk hoeveel gebruikers al deze naam hebben
         $query->execute([$gebruikersnaam]);
+
+        // Is dat er 0? Dan is de naam vrij en zijn we klaar
         if ((int) $query->fetchColumn() === 0) {
             return $gebruikersnaam;
         }
+
+        // Anders: bedenk een nieuwe naam met een hoger nummer (jan2, jan3, ...) en probeer opnieuw
         $gebruikersnaam = $basis . $nummer;
         $nummer++;
     }
@@ -258,9 +300,10 @@ function create_user(string $naam, string $email, string $telefoon, string $wach
     // Sla de gebruiker op in de database
     $db = get_db();
     $query = $db->prepare('INSERT INTO users (username, name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)');
+    // Bij het telefoonnummer staat '?: null': is het veld leeg? Dan slaan we "niks" op.
     $query->execute([$gebruikersnaam, $naam, $email, $telefoon ?: null, $hash, $rol]);
 
-    // Geef het ID van de nieuwe gebruiker terug
+    // De database geeft elke nieuwe gebruiker zelf een nummer (ID). Dat geven wij terug.
     return (int) $db->lastInsertId();
 }
 
@@ -400,9 +443,11 @@ function get_slots_with_parcels(): array
 // Uitkomst: ['Stelling A' => [vak, vak, ...], 'Stelling B' => [...]]
 function group_slots_by_rack(array $vakken): array
 {
+    // Begin met een lege lijst
     $stellingen = [];
 
-    // Loop door alle vakken en zet ze bij de juiste stelling
+    // 'foreach' betekent: "doe dit voor elk vak in de lijst, een voor een".
+    // We leggen elk vak in het groepje van zijn eigen stelling.
     foreach ($vakken as $vak) {
         $stellingen[$vak['rack']][] = $vak;
     }
@@ -429,7 +474,8 @@ function is_slot_free(int $vak_id): bool
     $query = get_db()->prepare('SELECT status FROM storage_slots WHERE id = ?');
     $query->execute([$vak_id]);
 
-    // Alleen als de status precies 'free' is, is het vak vrij
+    // fetchColumn() geeft het ene antwoord terug dat de database gevonden heeft (de status).
+    // Alleen als dat precies 'free' is, is het vak vrij. Bestaat het vak niet? Dan is er geen antwoord en dus 'false'.
     return $query->fetchColumn() === 'free';
 }
 
@@ -595,7 +641,8 @@ function get_recent_parcels(int $aantal = 5): array
 {
     $query = get_db()->prepare(PARCEL_SELECT . ' ORDER BY p.received_at DESC LIMIT ?');
 
-    // Bij LIMIT moet MySQL echt een getal krijgen, daarom bindValue met PARAM_INT
+    // LIMIT = "geef maximaal zoveel rijen". Daar moet echt een getal staan (geen tekst).
+    // Daarom zeggen we hier met PARAM_INT: "dit is een heel getal".
     $query->bindValue(1, $aantal, PDO::PARAM_INT);
     $query->execute();
     return $query->fetchAll();
@@ -627,7 +674,7 @@ function generate_pickup_code(): string
     // Tekens die we gebruiken. Zonder 0, O, 1 en I want die lijken te veel op elkaar.
     $tekens = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
-    // Query om te checken of een code al bestaat
+    // Query om te controleren of een code al bestaat
     $query = get_db()->prepare('SELECT COUNT(*) FROM parcels WHERE pickup_code = ?');
 
     // Blijf codes maken tot we er een hebben die nog niet bestaat
@@ -656,7 +703,8 @@ function pickup_code_matches(array $pakket, string $ingevulde_code): bool
     // Maak hoofdletters en haal spaties weg, zodat pk-7x9b ook goed is
     $ingevulde_code = strtoupper(trim($ingevulde_code));
 
-    // hash_equals vergelijkt veilig (tegen 'timing attacks')
+    // hash_equals vergelijkt twee teksten. Het is een extra veilige manier van vergelijken,
+    // die niet verklapt hoeveel tekens er al goed waren. Geeft true als ze gelijk zijn.
     return hash_equals($pakket['pickup_code'], $ingevulde_code);
 }
 
@@ -689,7 +737,8 @@ function validate_parcel_input(array $invoer): ?string
         return 'Kies een vrij opslagvak voor een binnengekomen pakket.';
     }
 
-    // Klopt de barcode? Alleen letters, cijfers en - (max 50 tekens)
+    // Klopt de barcode? Alleen letters, cijfers en - (max 50 tekens).
+    // (Het uitroepteken ! betekent "NIET": dus "als het NIET past op het patroon...")
     if (!preg_match('/^[A-Za-z0-9\-]{1,50}$/', $invoer['tracking_code'])) {
         return 'De barcode mag alleen letters, cijfers en - bevatten (maximaal 50 tekens).';
     }
@@ -705,7 +754,7 @@ function validate_parcel_input(array $invoer): ?string
         return 'Kies een geldige vervoerder.';
     }
 
-    // Is het opslagvak echt vrij? (iemand kan de HTML aanpassen, dus altijd checken!)
+    // Is het opslagvak echt vrij? (iemand kan de HTML aanpassen, dus altijd controleren!)
     if ($invoer['status'] === 'arrived' && !is_slot_free($invoer['storage_slot_id'])) {
         return 'Dit opslagvak is niet (meer) vrij. Kies een ander vak.';
     }
@@ -721,7 +770,7 @@ function validate_parcel_input(array $invoer): ?string
 
 // Slaat een nieuw pakket op. Is het al binnen? Dan wordt het opslagvak ook bezet.
 // Geeft de nieuwe afhaalcode terug.
-// LET OP: roep eerst validate_parcel_input() aan, die checkt of het vak vrij is.
+// LET OP: roep eerst validate_parcel_input() aan, die controleert of het vak vrij is.
 function register_parcel(array $invoer, int $medewerker_id): string
 {
     $db = get_db();
@@ -742,8 +791,10 @@ function register_parcel(array $invoer, int $medewerker_id): string
 
     // TRANSACTIE: of ALLES lukt, of er gebeurt NIKS.
     // Zo kan het nooit gebeuren dat het pakket wel is opgeslagen maar het vak niet bezet is.
+    // beginTransaction = "vanaf nu houdt de database alle wijzigingen nog even vast"
     $db->beginTransaction();
 
+    // 'try' betekent: "probeer dit". Gaat er iets mis? Dan springt de code naar 'catch' hieronder.
     try {
         // Stap 1: zet het vak op bezet (alleen als het pakket al binnen is)
         if ($is_binnen) {
@@ -770,19 +821,22 @@ function register_parcel(array $invoer, int $medewerker_id): string
             $medewerker_id,
         ]);
 
-        // Alles gelukt: maak de wijzigingen definitief
+        // commit = "alles is gelukt, sla de wijzigingen nu echt op"
         $db->commit();
         return $afhaalcode;
     } catch (PDOException $fout) {
-        // Er ging iets mis: draai alles terug en geef de fout door
+        // Er ging iets mis met de database.
+        // rollBack = "draai alle wijzigingen terug, alsof er niks is gebeurd"
         $db->rollBack();
+
+        // Geef de fout door, zodat de gebruiker de melding "Er ging iets mis" ziet
         throw $fout;
     }
 }
 
 // Een VERWACHT pakket is binnengekomen: leg het in een vrij vak.
 // Status wordt 'arrived' en vanaf nu loopt de afhaaltermijn.
-// LET OP: check eerst met is_slot_free() of het vak vrij is.
+// LET OP: controleer eerst met is_slot_free() of het vak vrij is.
 function receive_parcel(array $pakket, int $vak_id, int $medewerker_id): void
 {
     $db = get_db();
@@ -857,7 +911,7 @@ function finish_parcel(array $pakket, string $nieuwe_status): void
 }
 
 // Verplaatst een pakket naar een ander (vrij) opslagvak.
-// LET OP: check eerst met is_slot_free() of het nieuwe vak vrij is.
+// LET OP: controleer eerst met is_slot_free() of het nieuwe vak vrij is.
 function move_parcel_to_slot(array $pakket, int $nieuw_vak_id): void
 {
     $db = get_db();
@@ -895,7 +949,8 @@ function is_overdue(string $status, ?string $deadline): bool
         return false;
     }
 
-    // Is de deadline al voorbij?
+    // strtotime(...) maakt van de deadline een getal (seconden sinds 1970) en time() is "nu".
+    // Is de deadline een kleiner getal dan nu? Dan is hij al voorbij.
     return strtotime($deadline) < time();
 }
 
@@ -914,7 +969,9 @@ function status_badge(string $status, ?string $deadline = null): string
         return '<span class="badge bg-amber-100 text-amber-900 border border-amber-300">⚠️ Te lang aanwezig</span>';
     }
 
-    // Kies kleur EN tekst op basis van de status (alleen kleur is niet duidelijk voor iedereen)
+    // Kies kleur EN tekst op basis van de status (alleen kleur is niet duidelijk voor iedereen).
+    // 'match' werkt als een keuzelijst: "als de status X is, geef dan dit labeltje terug".
+    // 'default' is het laatste vangnet voor als de status geen van de bovenstaande is.
     return match ($status) {
         'expected'  => '<span class="badge bg-sky-100 text-sky-800 border border-sky-300">🔵 Verwacht</span>',
         'arrived'   => '<span class="badge bg-emerald-100 text-emerald-800 border border-emerald-300">🟢 Binnengekomen (Klaar)</span>',

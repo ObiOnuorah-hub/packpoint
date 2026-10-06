@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Controleer naam en telefoon (het e-mailadres kan niet worden gewijzigd)
     $fout = validate_contact_details($naam, $gebruiker['email'], $telefoon);
 
-    // Wil de gebruiker ook een nieuw wachtwoord? Check dan of het goed genoeg is
+    // Wil de gebruiker ook een nieuw wachtwoord? Controleer dan of het goed genoeg is
     if ($fout === null && $nieuw_wachtwoord !== '') {
         $fout = validate_new_password($nieuw_wachtwoord, $herhaling);
     }
