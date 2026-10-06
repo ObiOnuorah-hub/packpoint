@@ -1,0 +1,5 @@
+# Het zip-bestand voor het inleveren hoort niet in de repository
+*.zip
+
+# Instellingen van de editor / Claude
+.claude/
