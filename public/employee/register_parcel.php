@@ -84,7 +84,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <!-- Keuze 1: binnengekomen -->
                 <label class="flex items-start gap-2 p-3 border border-slate-300 rounded-lg cursor-pointer hover:border-brand-sky">
-                    <input type="radio" name="status" value="arrived" class="mt-1" onchange="toonVakkeuze()"
+                    <input type="radio" name="status" value="arrived" class="mt-1" onchange="toggleSlotChoice()"
                            <?= $gekozen_status === 'arrived' ? 'checked' : ''; ?>>
                     <span>
                         <span class="block text-sm font-bold">Binnengekomen</span>
@@ -94,7 +94,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
                 <!-- Keuze 2: verwacht -->
                 <label class="flex items-start gap-2 p-3 border border-slate-300 rounded-lg cursor-pointer hover:border-brand-sky">
-                    <input type="radio" name="status" value="expected" class="mt-1" onchange="toonVakkeuze()"
+                    <input type="radio" name="status" value="expected" class="mt-1" onchange="toggleSlotChoice()"
                            <?= $gekozen_status === 'expected' ? 'checked' : ''; ?>>
                     <span>
                         <span class="block text-sm font-bold">Verwacht</span>
@@ -172,13 +172,13 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
     // Laat de vakkeuze alleen zien als 'Binnengekomen' is gekozen.
     // (Dit is alleen gemak. De server controleert het ook!)
-    function toonVakkeuze() {
+    function toggleSlotChoice() {
         const isBinnen = document.querySelector('input[name="status"][value="arrived"]').checked;
         document.getElementById('vakkeuze').style.display = isBinnen ? 'block' : 'none';
     }
 
     // Meteen 1 keer uitvoeren als de pagina laadt
-    toonVakkeuze();
+    toggleSlotChoice();
 </script>
 
 <?php

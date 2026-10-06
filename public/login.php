@@ -110,7 +110,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php foreach ($testaccounts as $account): ?>
                 <button type="button"
                         aria-label="Vul testaccount <?= h($account['rol']); ?> in"
-                        onclick="vulIn('<?= h($account['naam']); ?>', '<?= h($account['wachtwoord']); ?>')"
+                        onclick="fillTestAccount('<?= h($account['naam']); ?>', '<?= h($account['wachtwoord']); ?>')"
                         class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:border-brand-sky hover:bg-sky-50 transition text-center">
                     <span class="block text-xs font-bold text-slate-800"><?= h($account['rol']); ?></span>
                     <span class="block text-[11px] text-slate-500 font-mono"><?= h($account['naam']); ?></span>
@@ -129,7 +129,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <script>
     // Vult de gebruikersnaam en het wachtwoord in als je op een testaccount klikt
-    function vulIn(gebruikersnaam, wachtwoord) {
+    function fillTestAccount(gebruikersnaam, wachtwoord) {
         document.getElementById('username').value = gebruikersnaam;
         document.getElementById('password').value = wachtwoord;
     }
