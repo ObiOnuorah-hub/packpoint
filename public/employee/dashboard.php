@@ -1,40 +1,40 @@
 <?php
-// ==============================================================================
-// BALIE DASHBOARD (public/employee/dashboard.php)
-// ==============================================================================
-// Het hoofdscherm van de baliemedewerker.
-// Zoek snel een pakket op code, klant, vak en status.
-// Klik door om een verwacht pakket te ontvangen, of een binnengekomen pakket uit te geven.
+// employee/dashboard.php
+//
+// Het hoofdscherm van de baliemedewerker. Hier zoek je snel een pakket, op code, klant,
+// vak en status. Van hieruit ontvang je een verwacht pakket, of geef je een binnengekomen
+// pakket mee aan de klant.
 
-// Laad alles wat we nodig hebben
+// Eerst alles inladen wat deze pagina nodig heeft.
 require_once __DIR__ . '/../../includes/init.php';
 
-// Alleen medewerkers en admins mogen hier komen
+// Alleen medewerkers en admins mogen hier komen.
 require_role(['employee', 'admin']);
 
-// De keuzes in het statusfilter: 'active' en 'all' + alle losse statussen
+// De keuzes in het statusfilter: 'active' en 'all' plus alle losse statussen.
 $status_keuzes = ['active' => 'Actief (verwacht + binnen)'] + PARCEL_STATUSES + ['all' => 'Alle statussen'];
 
-// Lees de zoekterm uit de adresbalk (bijv. ?q=PK-7X9B), maximaal 100 tekens
+// Wat is er in de zoekbalk getypt? Dat staat in de adresbalk, bijvoorbeeld ?q=PK-7X9B.
+// We nemen maximaal 100 tekens, zodat niemand een gigantische tekst kan sturen.
 $zoekterm = mb_substr(trim($_GET['q'] ?? ''), 0, 100);
 
-// Lees het gekozen statusfilter. Onbekende waarde? Dan gewoon 'active'.
+// Welk statusfilter is gekozen? Is het iets wat we niet kennen? Dan nemen we gewoon 'active'.
 $status = $_GET['status'] ?? 'active';
 if (!array_key_exists($status, $status_keuzes)) {
     $status = 'active';
 }
 
-// Zoek de pakketten
+// En dan zoeken we de pakketten.
 $pakketten = search_parcels($zoekterm, $status);
 
-// Titel en bovenkant van de pagina
+// De titel voor het browsertabblad, en daarna de bovenkant van de pagina.
 $pagina_titel = 'Balie Snelzoeken';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="space-y-6">
 
-    <!-- Titel met knop om een nieuw pakket te registreren -->
+    <!-- De titel, met een knop om meteen een nieuw pakket te registreren -->
     <div class="card p-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
             <h1 class="page-title">Balie Snelzoeken &amp; Overzicht</h1>
@@ -43,16 +43,16 @@ require_once __DIR__ . '/../../includes/header.php';
         <a href="/employee/register_parcel.php" class="btn btn-primary">+ Nieuw Pakket Registreren</a>
     </div>
 
-    <!-- Zoekbalk met statusfilter -->
+    <!-- De zoekbalk met het statusfilter -->
     <form method="GET" action="/employee/dashboard.php" class="card p-4 grid grid-cols-1 md:grid-cols-[1fr_16rem_auto] gap-3 md:items-end">
-        <!-- Zoekveld: we laten de zoekterm weer zien (veilig gemaakt met h()) -->
+        <!-- Het zoekveld. Wat je net hebt gezocht blijft staan (met h() veilig gemaakt). -->
         <div>
             <label for="q" class="label">Zoek op code, klant of vak</label>
             <input type="search" id="q" name="q" value="<?= h($zoekterm); ?>" maxlength="100" class="input" autofocus
                    placeholder="Bijv. PK-7X9B, Jan de Vries, A-01 of een barcode">
         </div>
 
-        <!-- Statusfilter -->
+        <!-- Het statusfilter -->
         <div>
             <label for="status" class="label">Status</label>
             <select id="status" name="status" class="input">
@@ -62,27 +62,27 @@ require_once __DIR__ . '/../../includes/header.php';
             </select>
         </div>
 
-        <!-- Knoppen -->
+        <!-- De knoppen -->
         <div class="flex gap-2">
             <button type="submit" class="btn btn-primary">Zoeken</button>
             <?php if ($zoekterm !== '' || $status !== 'active'): ?>
-                <!-- Wis-knop (alleen als er gezocht of gefilterd is) -->
+                <!-- De wis-knop. Die laten we alleen zien als er iets is gezocht of gefilterd. -->
                 <a href="/employee/dashboard.php" class="btn btn-secondary">Wissen</a>
             <?php endif; ?>
         </div>
     </form>
 
-    <!-- Tabel met gevonden pakketten -->
+    <!-- De tabel met de gevonden pakketten -->
     <section class="card overflow-hidden">
         <div class="card-header">
             <h2 class="card-title">Gevonden Pakketten (Totaal: <?= count($pakketten); ?>)</h2>
         </div>
 
         <?php if (empty($pakketten)): ?>
-            <!-- Niks gevonden -->
+            <!-- Niks gevonden. Dan zeggen we dat, in plaats van een leeg scherm. -->
             <p class="p-8 text-center text-slate-400 text-sm">Geen pakketten gevonden. Probeer een andere zoekterm of status.</p>
         <?php else: ?>
-            <!-- overflow-x-auto: op mobiel kun je de tabel opzij schuiven -->
+            <!-- Op een telefoon is de tabel breder dan het scherm, dus je kunt hem opzij schuiven -->
             <div class="overflow-x-auto">
                 <table class="data-table">
                     <thead>
@@ -98,10 +98,10 @@ require_once __DIR__ . '/../../includes/header.php';
                     <tbody>
                         <?php foreach ($pakketten as $pakket): ?>
                             <tr>
-                                <!-- Afhaalcode -->
+                                <!-- De afhaalcode -->
                                 <td class="code"><?= h($pakket['pickup_code']); ?></td>
 
-                                <!-- Opslagvak (een verwacht pakket heeft nog geen vak) -->
+                                <!-- Het vakje. Een pakket dat nog verwacht wordt heeft er nog geen. -->
                                 <td>
                                     <?php if ($pakket['slot_code'] && $pakket['status'] === 'arrived'): ?>
                                         <span class="badge bg-slate-800 text-white">Vak <?= h($pakket['slot_code']); ?></span>
@@ -110,32 +110,32 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <?php endif; ?>
                                 </td>
 
-                                <!-- Klant: naam en e-mail -->
+                                <!-- De klant: naam en e-mailadres -->
                                 <td>
                                     <div class="font-semibold"><?= h($pakket['customer_name']); ?></div>
                                     <div class="text-xs text-slate-400"><?= h($pakket['customer_email']); ?></div>
                                 </td>
 
-                                <!-- Vervoerder en barcode -->
+                                <!-- De vervoerder en de barcode -->
                                 <td>
                                     <div class="font-semibold text-slate-700"><?= h($pakket['carrier_name']); ?></div>
                                     <div class="text-xs font-mono text-slate-400"><?= h($pakket['tracking_code']); ?></div>
                                 </td>
 
-                                <!-- Status (kleur + tekst) -->
+                                <!-- De status, met kleur en tekst -->
                                 <td><?= status_badge($pakket['status'], $pakket['pickup_deadline']); ?></td>
 
-                                <!-- Knoppen: welke je ziet hangt af van de status -->
+                                <!-- De knoppen. Welke je ziet hangt af van de status. -->
                                 <td class="text-right whitespace-nowrap">
                                     <?php if ($pakket['status'] === 'expected'): ?>
-                                        <!-- Verwacht pakket: ontvangst registreren -->
+                                        <!-- Het pakket wordt nog verwacht: je kunt de ontvangst registreren. -->
                                         <a href="/employee/edit_parcel.php?id=<?= (int) $pakket['id']; ?>" class="btn btn-primary btn-sm">Ontvangen</a>
                                     <?php elseif ($pakket['status'] === 'arrived'): ?>
-                                        <!-- Binnengekomen pakket: beheren of uitgeven -->
+                                        <!-- Het pakket ligt hier: je kunt het beheren of meegeven. -->
                                         <a href="/employee/edit_parcel.php?id=<?= (int) $pakket['id']; ?>" class="btn btn-secondary btn-sm">Beheren</a>
                                         <a href="/employee/verify_pickup.php?id=<?= (int) $pakket['id']; ?>" class="btn btn-success btn-sm">Uitgeven</a>
                                     <?php else: ?>
-                                        <!-- Al afgehandeld: alleen de datum laten zien -->
+                                        <!-- Het pakket is al afgehandeld, dus we laten alleen de datum zien. -->
                                         <span class="text-xs text-slate-400">Afgehandeld <?= format_date($pakket['picked_up_at']); ?></span>
                                     <?php endif; ?>
                                 </td>
@@ -150,6 +150,6 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <?php
-// Onderkant van de pagina
+// En de onderkant van de pagina.
 require_once __DIR__ . '/../../includes/footer.php';
 ?>

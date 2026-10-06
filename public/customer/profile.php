@@ -1,75 +1,75 @@
 <?php
-// ==============================================================================
-// MIJN PROFIEL (public/customer/profile.php)
-// ==============================================================================
-// Hier kan de ingelogde gebruiker zijn naam, telefoonnummer en wachtwoord wijzigen.
-// Je kunt ALLEEN je eigen gegevens wijzigen (we gebruiken altijd het ID uit de sessie).
+// customer/profile.php
+//
+// Hier past de ingelogde gebruiker zijn naam, telefoonnummer en wachtwoord aan.
+// Je kunt alleen je eigen gegevens wijzigen, want we werken altijd met het nummer
+// uit je sessie en nooit met iets uit het formulier.
 
-// Laad alles wat we nodig hebben
+// Eerst alles inladen wat deze pagina nodig heeft.
 require_once __DIR__ . '/../../includes/init.php';
 
-// Je moet ingelogd zijn om je profiel te bekijken
+// Je moet ingelogd zijn om je profiel te zien.
 require_login();
 
-// Haal de gegevens van de ingelogde gebruiker op
+// Wie is er ingelogd?
 $gebruiker = current_user();
 
-// Is het formulier verstuurd?
+// Is er net een formulier verstuurd?
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Lees de ingevulde velden uit
+    // Wat is er ingevuld?
     $naam = trim($_POST['name'] ?? '');
     $telefoon = trim($_POST['phone'] ?? '');
     $nieuw_wachtwoord = $_POST['new_password'] ?? '';
     $herhaling = $_POST['new_password_confirm'] ?? '';
 
-    // Controleer naam en telefoon (het e-mailadres kan niet worden gewijzigd)
+    // Naam en telefoon nakijken. Het e-mailadres kan niet worden aangepast.
     $fout = validate_contact_details($naam, $gebruiker['email'], $telefoon);
 
-    // Wil de gebruiker ook een nieuw wachtwoord? Controleer dan of het goed genoeg is
+    // Is er een nieuw wachtwoord ingevuld? Dan kijken we of het goed genoeg is.
     if ($fout === null && $nieuw_wachtwoord !== '') {
         $fout = validate_new_password($nieuw_wachtwoord, $herhaling);
     }
 
     if ($fout !== null) {
-        // Er ging iets mis: laat de melding zien
+        // Er klopt iets niet, dus we laten de melding zien.
         set_flash('error', $fout);
     } else {
-        // Sla naam en telefoon op
+        // Eerst de naam en het telefoonnummer opslaan.
         update_user_profile($gebruiker['id'], $naam, $telefoon);
         $bericht = 'Profielgegevens succesvol bijgewerkt!';
 
-        // Sla ook het nieuwe wachtwoord op (als dat is ingevuld)
+        // En het nieuwe wachtwoord, maar alleen als je er een hebt ingevuld.
         if ($nieuw_wachtwoord !== '') {
             update_user_password($gebruiker['id'], $nieuw_wachtwoord);
             $bericht = 'Je profiel en wachtwoord zijn succesvol bijgewerkt!';
         }
 
-        // Herlaad de pagina met een succesmelding
+        // De pagina opnieuw laden, met een melding dat het gelukt is.
         redirect_with_message('/customer/profile.php', 'success', $bericht);
     }
 }
 
-// Titel en bovenkant van de pagina
+// De titel voor het browsertabblad, en daarna de bovenkant van de pagina.
 $pagina_titel = 'Mijn Profiel';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<!-- Profielkaart -->
+<!-- Het witte blok met het profiel -->
 <div class="max-w-xl mx-auto card p-8">
     <h1 class="page-title text-2xl mb-6">Mijn Profiel</h1>
 
     <form action="/customer/profile.php" method="POST" class="space-y-4">
-        <!-- Geheime CSRF-code (beveiliging) -->
+        <!-- Een verborgen geheime code die de site beschermt tegen nepformulieren (CSRF) -->
         <?= csrf_field(); ?>
 
-        <!-- Naam (bij een fout tonen we wat je net had ingevuld) -->
+        <!-- Naam. Ging er iets mis? Dan laten we zien wat je net had getypt. -->
         <div>
             <label for="name" class="label">Volledige naam *</label>
             <input type="text" id="name" name="name" maxlength="100" required class="input"
                    value="<?= h($_POST['name'] ?? $gebruiker['name']); ?>">
         </div>
 
-        <!-- E-mailadres: alleen lezen. Je pakketten zijn aan dit adres gekoppeld, daarom kun je het niet zelf wijzigen. -->
+        <!-- E-mailadres. Je kunt het alleen lezen, want je pakketten hangen eraan vast. -->
         <div>
             <label for="email" class="label">E-mailadres (vast)</label>
             <input type="email" id="email" disabled class="input bg-slate-100 text-slate-500 cursor-not-allowed"
@@ -84,30 +84,30 @@ require_once __DIR__ . '/../../includes/header.php';
                    value="<?= h($_POST['phone'] ?? $gebruiker['phone']); ?>">
         </div>
 
-        <!-- Wachtwoord wijzigen (niet verplicht) -->
+        <!-- Een nieuw wachtwoord kiezen mag, maar hoeft niet -->
         <fieldset class="pt-4 border-t border-slate-100 space-y-4">
             <legend class="text-xs font-bold text-slate-500 uppercase tracking-wider pt-4">Wachtwoord wijzigen (optioneel)</legend>
 
-            <!-- Nieuw wachtwoord -->
+            <!-- Het nieuwe wachtwoord -->
             <div>
                 <label for="new_password" class="label">Nieuw wachtwoord</label>
                 <input type="password" id="new_password" name="new_password" class="input" autocomplete="new-password"
                        placeholder="Laat leeg als je je wachtwoord niet wilt wijzigen">
             </div>
 
-            <!-- Nieuw wachtwoord herhalen -->
+            <!-- Nog een keer, zodat een typfout meteen opvalt -->
             <div>
                 <label for="new_password_confirm" class="label">Herhaal nieuw wachtwoord</label>
                 <input type="password" id="new_password_confirm" name="new_password_confirm" class="input" autocomplete="new-password">
             </div>
         </fieldset>
 
-        <!-- Opslaan -->
+        <!-- De knop om op te slaan -->
         <button type="submit" class="btn btn-primary w-full py-3">Wijzigingen Opslaan</button>
     </form>
 </div>
 
 <?php
-// Onderkant van de pagina
+// En de onderkant van de pagina.
 require_once __DIR__ . '/../../includes/footer.php';
 ?>

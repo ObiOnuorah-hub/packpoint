@@ -66,7 +66,7 @@ Getest met 73 automatische controles, en ze slagen allemaal. Onder andere getest
 
 ### 10. Alle code in één centrale repository, definitieve versie is duidelijk ✅
 - Alles staat op GitHub: <https://github.com/ObiOnuorah-hub/packpoint> (publiek).
-- De definitieve versie is de tag **`v1.2`** op branch **`main`**.
+- De definitieve versie is de tag **`v1.3`** op branch **`main`**.
 
 ### 11. Commits verspreid over de hele projectperiode ❌
 De Git-repository is pas op **6 oktober 2026** gemaakt. Daarvoor is er zonder Git gewerkt.

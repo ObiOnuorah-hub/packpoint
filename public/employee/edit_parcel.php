@@ -1,31 +1,32 @@
 <?php
-// ==============================================================================
-// PAKKET BEHEREN (public/employee/edit_parcel.php)
-// ==============================================================================
-// Op deze pagina kan de medewerker bij 1 pakket:
-//   VERWACHT pakket:
-//     - ontvangst registreren: het pakket in een vrij vak leggen          (FE-05)
-//   BINNENGEKOMEN pakket:
-//     - het opslagvak wijzigen (naar een ander vrij vak verplaatsen)      (FE-05)
-//     - de status aanpassen: retour naar de vervoerder sturen
-//     - doorklikken naar uitgeven (daarvoor is de afhaalcode nodig)
+// employee/edit_parcel.php
+//
+// Op deze pagina beheert de medewerker een pakket. Wat je kunt doen hangt af van
+// waar het pakket is:
+//
+//   Het pakket wordt nog verwacht
+//     - de ontvangst registreren: je legt het in een vrij vakje
+//   Het pakket is binnengekomen
+//     - het naar een ander vrij vakje verplaatsen
+//     - het terugsturen naar de vervoerder
+//     - doorklikken naar uitgeven (daar is de afhaalcode voor nodig)
 
-// Laad alles wat we nodig hebben
+// Eerst alles inladen wat deze pagina nodig heeft.
 require_once __DIR__ . '/../../includes/init.php';
 
-// Alleen medewerkers en admins
+// Alleen medewerkers en admins mogen hier komen.
 require_role(['employee', 'admin']);
 
-// Welk pakket? (ID uit de adresbalk, veilig omgezet naar een getal)
+// Om welk pakket gaat het? Het nummer staat in de adresbalk en we maken er veilig een getal van.
 $pakket_id = (int) ($_GET['id'] ?? 0);
 $pakket = find_parcel($pakket_id);
 
-// Bestaat het pakket niet? Terug met een melding
+// Bestaat het pakket niet? Dan gaan we terug met een melding.
 if (!$pakket) {
     redirect_with_message('/employee/dashboard.php', 'error', 'Pakket niet gevonden.');
 }
 
-// Is het pakket al afgehandeld (opgehaald of retour)? Dan mag je het niet meer wijzigen
+// Is het pakket al afgehandeld, dus opgehaald of teruggestuurd? Dan mag er niks meer aan veranderen.
 if (!is_active_parcel($pakket)) {
     $status_tekst = PARCEL_STATUSES[$pakket['status']];
     redirect_with_message('/employee/dashboard.php', 'error', "Dit pakket is al afgehandeld (status: $status_tekst) en kan niet meer worden gewijzigd.");
@@ -33,51 +34,51 @@ if (!is_active_parcel($pakket)) {
 
 // Is er op een knop gedrukt?
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Welke knop? (verborgen veld 'action' in het formulier)
+    // Op welke knop? Dat staat in een verborgen veld 'action' in het formulier.
     $actie = $_POST['action'] ?? '';
 
-    // Is het pakket verwacht of al binnen?
+    // Wordt het pakket nog verwacht, of is het al binnen?
     $is_verwacht = $pakket['status'] === 'expected';
 
-    // Ontvangen kan alleen bij een VERWACHT pakket
+    // Ontvangen kan alleen als het pakket nog verwacht wordt.
     if ($actie === 'receive' && !$is_verwacht) {
         redirect_with_message("/employee/edit_parcel.php?id=$pakket_id", 'error', 'Dit pakket is al binnen en kan niet nog een keer ontvangen worden.');
     }
 
-    // Verplaatsen en retour kunnen alleen bij een BINNENGEKOMEN pakket
+    // Verplaatsen en terugsturen kan alleen als het pakket al binnen is.
     if ($actie !== 'receive' && $is_verwacht) {
         redirect_with_message("/employee/edit_parcel.php?id=$pakket_id", 'error', 'Dit pakket is nog niet binnen. Registreer eerst de ontvangst.');
     }
 
-    // ACTIE 0: ontvangst registreren (verwacht pakket in een vrij vak leggen)
+    // Actie 1: de ontvangst registreren. Het verwachte pakket gaat in een vrij vakje.
     if ($actie === 'receive') {
         $vak_id = (int) ($_POST['storage_slot_id'] ?? 0);
 
-        // Controleer of het gekozen vak echt vrij is
+        // Is het gekozen vakje echt vrij?
         if (!is_slot_free($vak_id)) {
             set_flash('error', 'Kies een vrij opslagvak.');
         } else {
-            // Vak is vrij: ontvangst opslaan
+            // Ja, dus de ontvangst kan worden opgeslagen.
             receive_parcel($pakket, $vak_id, current_user()['id']);
             redirect_with_message("/employee/edit_parcel.php?id=$pakket_id", 'success', 'Ontvangst geregistreerd! Het pakket ligt nu in het gekozen vak en de afhaaltermijn is gestart.');
         }
     }
 
-    // ACTIE 1: pakket naar een ander vak verplaatsen
+    // Actie 2: het pakket naar een ander vakje verplaatsen.
     if ($actie === 'move_slot') {
         $nieuw_vak_id = (int) ($_POST['storage_slot_id'] ?? 0);
 
-        // Controleer of het gekozen vak echt vrij is
+        // Is het gekozen vakje echt vrij?
         if (!is_slot_free($nieuw_vak_id)) {
             set_flash('error', 'Kies een vrij opslagvak.');
         } else {
-            // Vak is vrij: verplaatsen
+            // Ja, dus we kunnen verplaatsen.
             move_parcel_to_slot($pakket, $nieuw_vak_id);
             redirect_with_message("/employee/edit_parcel.php?id=$pakket_id", 'success', 'Het pakket is verplaatst naar een ander opslagvak.');
         }
     }
 
-    // ACTIE 2: status aanpassen naar 'retour vervoerder'
+    // Actie 3: het pakket terugsturen naar de vervoerder.
     if ($actie === 'return') {
         return_parcel($pakket);
         redirect_with_message(
@@ -88,17 +89,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Lijst met vrije vakken voor het keuzemenu
+// De vrije vakjes voor het keuzemenu.
 $vrije_vakken = get_free_slots();
 
-// Titel en bovenkant van de pagina
+// De titel voor het browsertabblad, en daarna de bovenkant van de pagina.
 $pagina_titel = 'Pakket Beheren';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="max-w-3xl mx-auto space-y-6">
 
-    <!-- Titel + terugknop -->
+    <!-- De titel en een knop om terug te gaan -->
     <div class="card p-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
             <h1 class="page-title">Pakket Beheren</h1>
@@ -107,7 +108,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <a href="/employee/dashboard.php" class="text-sm font-bold text-brand-navy hover:underline">&larr; Terug naar balie</a>
     </div>
 
-    <!-- Gegevens van het pakket -->
+    <!-- Alle gegevens van het pakket -->
     <section class="card p-6">
         <h2 class="card-title mb-4">Pakketgegevens</h2>
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -132,9 +133,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </section>
 
     <?php if ($pakket['status'] === 'expected'): ?>
-        <!-- ============================================================== -->
-        <!-- VERWACHT PAKKET: ontvangst registreren                          -->
-        <!-- ============================================================== -->
+        <!-- Het pakket wordt nog verwacht, dus je kunt de ontvangst registreren -->
         <section class="card p-6">
             <h2 class="card-title mb-1">Ontvangst registreren</h2>
             <p class="text-sm text-slate-500 mb-4">Is het pakket binnengekomen? Leg het in een vrij vak. Daarna start de afhaaltermijn van <?= PICKUP_DAYS; ?> dagen.</p>
@@ -144,7 +143,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php else: ?>
                 <form method="POST" class="space-y-3">
                     <?= csrf_field(); ?>
-                    <!-- Vertelt de server welke actie we willen -->
+                    <!-- Dit verborgen veld vertelt de server welke actie we willen -->
                     <input type="hidden" name="action" value="receive">
 
                     <label for="ontvangst_vak" class="label">Opslagvak *</label>
@@ -161,12 +160,10 @@ require_once __DIR__ . '/../../includes/header.php';
         </section>
 
     <?php else: ?>
-    <!-- ============================================================== -->
-    <!-- BINNENGEKOMEN PAKKET: twee blokken naast elkaar (onder elkaar op mobiel) -->
-    <!-- ============================================================== -->
+    <!-- Het pakket is binnen. Twee blokken naast elkaar, op een telefoon onder elkaar. -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        <!-- BLOK 1: opslagvak wijzigen -->
+        <!-- Blok 1: een ander vakje kiezen -->
         <section class="card p-6">
             <h2 class="card-title mb-1">Opslagvak wijzigen</h2>
             <p class="text-sm text-slate-500 mb-4">Verplaats het pakket naar een ander vrij vak. Het oude vak wordt dan weer vrij.</p>
@@ -176,7 +173,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php else: ?>
                 <form method="POST" class="space-y-3">
                     <?= csrf_field(); ?>
-                    <!-- Vertelt de server welke actie we willen -->
+                    <!-- Dit verborgen veld vertelt de server welke actie we willen -->
                     <input type="hidden" name="action" value="move_slot">
 
                     <label for="storage_slot_id" class="label">Nieuw opslagvak</label>
@@ -192,7 +189,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
         </section>
 
-        <!-- BLOK 2: status aanpassen -->
+        <!-- Blok 2: de status aanpassen -->
         <section class="card p-6">
             <h2 class="card-title mb-1">Status aanpassen</h2>
             <p class="text-sm text-slate-500 mb-4">
@@ -201,10 +198,10 @@ require_once __DIR__ . '/../../includes/header.php';
             </p>
 
             <div class="space-y-3">
-                <!-- Naar het uitgifte-scherm -->
+                <!-- Naar het scherm om het pakket uit te geven -->
                 <a href="/employee/verify_pickup.php?id=<?= $pakket_id; ?>" class="btn btn-success w-full">✓ Uitgeven aan klant</a>
 
-                <!-- Retour: vraagt eerst om bevestiging -->
+                <!-- Terugsturen. Eerst vragen we of je het zeker weet. -->
                 <form method="POST" onsubmit="return confirm('Weet je zeker dat dit pakket retour gaat naar de vervoerder?');">
                     <?= csrf_field(); ?>
                     <input type="hidden" name="action" value="return">
@@ -217,6 +214,6 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <?php
-// Onderkant van de pagina
+// En de onderkant van de pagina.
 require_once __DIR__ . '/../../includes/footer.php';
 ?>

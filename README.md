@@ -238,7 +238,7 @@ en in `status_badge()` in `includes/functions.php`.
 
 ## 11. Versie en inleveren
 
-**Definitieve versie:** tag `v1.2` op branch `main`.
+**Definitieve versie:** tag `v1.3` op branch `main`.
 
 | Document                                                         | Waar is het voor?                                     |
 |------------------------------------------------------------------|-------------------------------------------------------|

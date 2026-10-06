@@ -1,51 +1,50 @@
 <?php
-// ==============================================================================
-// OPSLAGVAKKEN BEHEER (public/admin/slots_manage.php)
-// ==============================================================================
-// De beheerder kan hier nieuwe opslagvakken toevoegen (bijv. vak C-01 in Stelling C)
-// en ziet een lijst van alle vakken met hun status.
+// admin/slots_manage.php
+//
+// Hier voegt de admin nieuwe opslagvakjes toe, bijvoorbeeld vak C-01 in Stelling C.
+// Onder het formulier staat een lijst met alle vakjes en of ze vrij of bezet zijn.
 
-// Laad alles wat we nodig hebben
+// Eerst alles inladen wat deze pagina nodig heeft.
 require_once __DIR__ . '/../../includes/init.php';
 
-// Alleen admins
+// Alleen admins mogen hier komen.
 require_role('admin');
 
-// Is het formulier verstuurd?
+// Is er net een formulier verstuurd?
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Lees de velden uit. Vakcodes altijd in HOOFDLETTERS (c-01 wordt C-01)
+    // Wat is er ingevuld? Een vakcode maken we altijd in hoofdletters, dus c-01 wordt C-01.
     $vakcode = strtoupper(trim($_POST['slot_code'] ?? ''));
     $stelling = trim($_POST['rack'] ?? '');
 
-    // Controleer de invoer
+    // We kijken de invoer stap voor stap na. Bij de eerste fout stoppen we en laten we die zien.
     if ($vakcode === '' || $stelling === '') {
         set_flash('error', 'Vul a.u.b. een vakcode en stelling in.');
     } elseif (!preg_match('/^[A-Z0-9\-]{1,10}$/', $vakcode)) {
-        // Alleen letters, cijfers en - (max 10 tekens, zo past het in de database)
+        // Alleen letters, cijfers en een streepje, en maximaal 10 tekens, anders past het niet in de database.
         set_flash('error', 'De vakcode mag alleen letters, cijfers en - bevatten (max 10 tekens), bijv. C-01.');
     } elseif (is_too_long($stelling, 50)) {
         set_flash('error', 'De naam van de stelling mag maximaal 50 tekens zijn.');
     } elseif (slot_code_exists($vakcode)) {
-        // Elke vakcode mag maar 1 keer bestaan
+        // Elke vakcode mag maar een keer bestaan.
         set_flash('error', "Opslagvak '{$vakcode}' bestaat al.");
     } else {
-        // Alles goed: vak toevoegen (een nieuw vak is altijd vrij)
+        // Alles klopt, dus het vakje wordt toegevoegd. Een nieuw vakje is altijd vrij.
         add_slot($vakcode, $stelling);
         redirect_with_message('/admin/slots_manage.php', 'success', "Opslagvak '{$vakcode}' succesvol toegevoegd aan {$stelling}!");
     }
 }
 
-// Haal alle vakken op voor de tabel
+// Alle vakjes ophalen voor de tabel.
 $vakken = get_all_slots();
 
-// Titel en bovenkant van de pagina
+// De titel voor het browsertabblad, en daarna de bovenkant van de pagina.
 $pagina_titel = 'Vakken Beheer';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="space-y-6">
 
-    <!-- Titel -->
+    <!-- De titel -->
     <div class="card p-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
             <h1 class="page-title">Opslagvakken Beheer</h1>
@@ -54,38 +53,38 @@ require_once __DIR__ . '/../../includes/header.php';
         <a href="/admin/dashboard.php" class="text-sm text-brand-navy font-bold hover:underline">&larr; Terug naar Admin Dashboard</a>
     </div>
 
-    <!-- Formulier: nieuw vak -->
+    <!-- Het formulier voor een nieuw vakje -->
     <section class="card p-6">
         <h2 class="card-title mb-4">+ Nieuw Opslagvak Toevoegen</h2>
         <form action="/admin/slots_manage.php" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <?= csrf_field(); ?>
 
-            <!-- Stelling -->
+            <!-- De stelling -->
             <div>
                 <label for="rack" class="label">Stelling / sectie *</label>
                 <input type="text" id="rack" name="rack" value="<?= old('rack'); ?>" maxlength="50" required class="input" placeholder="bijv. Stelling C">
             </div>
 
-            <!-- Vakcode -->
+            <!-- De vakcode -->
             <div>
                 <label for="slot_code" class="label">Vakcode *</label>
                 <input type="text" id="slot_code" name="slot_code" value="<?= old('slot_code'); ?>" maxlength="10" required class="input font-mono uppercase" placeholder="bijv. C-01">
             </div>
 
-            <!-- Toevoegen -->
+            <!-- De knop om toe te voegen -->
             <div class="flex items-end">
                 <button type="submit" class="btn btn-primary w-full">Vak Toevoegen</button>
             </div>
         </form>
     </section>
 
-    <!-- Tabel met alle vakken -->
+    <!-- De tabel met alle vakjes -->
     <section class="card overflow-hidden">
         <div class="card-header">
             <h2 class="card-title">Overzicht Opslagvakken (Totaal: <?= count($vakken); ?>)</h2>
         </div>
         <?php if (empty($vakken)): ?>
-            <!-- Nog geen vakken -->
+            <!-- Er zijn nog geen vakjes -->
             <p class="p-8 text-center text-slate-400 text-sm">Er zijn nog geen opslagvakken. Voeg hierboven het eerste vak toe.</p>
         <?php else: ?>
         <div class="overflow-x-auto">
@@ -114,6 +113,6 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <?php
-// Onderkant van de pagina
+// En de onderkant van de pagina.
 require_once __DIR__ . '/../../includes/footer.php';
 ?>

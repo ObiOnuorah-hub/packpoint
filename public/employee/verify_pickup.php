@@ -1,46 +1,48 @@
 <?php
-// ==============================================================================
-// PAKKET UITGEVEN (public/employee/verify_pickup.php)
-// ==============================================================================
-// De klant noemt zijn afhaalcode, de medewerker typt hem in.
-// Klopt de code? Dan wordt het pakket uitgegeven en het opslagvak weer vrij (FE-07).
+// employee/verify_pickup.php
 //
-// BUSINESS RULE: een pakket wordt ALLEEN uitgegeven met de juiste afhaalcode.
+// Hier geeft de medewerker een pakket mee aan de klant. De klant noemt zijn afhaalcode,
+// de medewerker typt die in, en als de code klopt wordt het pakket uitgegeven en komt
+// het vakje weer vrij.
+//
+// De belangrijkste regel: een pakket gaat alleen mee met de juiste afhaalcode.
 
-// Laad alles wat we nodig hebben
+// Eerst alles inladen wat deze pagina nodig heeft.
 require_once __DIR__ . '/../../includes/init.php';
 
-// Alleen medewerkers en admins mogen pakketten uitgeven
+// Alleen medewerkers en admins mogen pakketten uitgeven.
 require_role(['employee', 'admin']);
 
-// Welk pakket? Het ID staat in de adresbalk (bijv. ?id=1). (int) maakt er veilig een getal van.
+// Om welk pakket gaat het? Het nummer staat in de adresbalk, bijvoorbeeld ?id=1.
+// Met (int) maken we er veilig een getal van.
 $pakket_id = (int) ($_GET['id'] ?? 0);
 
-// Haal het pakket op uit de database
+// Het pakket opzoeken in de database.
 $pakket = find_parcel($pakket_id);
 
-// Bestaat het pakket niet? Terug naar het dashboard
+// Bestaat het pakket niet? Dan gaan we terug naar het dashboard.
 if (!$pakket) {
     redirect_with_message('/employee/dashboard.php', 'error', 'Pakket niet gevonden.');
 }
 
-// Alleen een binnengekomen pakket mag worden uitgegeven (niet verwacht, niet al opgehaald)
+// Alleen een pakket dat binnen ligt mag worden uitgegeven. Niet een dat nog verwacht
+// wordt, en ook niet een dat al is opgehaald.
 if ($pakket['status'] !== 'arrived') {
     $status_tekst = PARCEL_STATUSES[$pakket['status']];
     redirect_with_message('/employee/dashboard.php', 'error', "Dit pakket kan niet worden uitgegeven (status: $status_tekst).");
 }
 
-// Is het formulier verstuurd?
+// Is er net een formulier verstuurd?
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Klopt de afhaalcode die de klant noemt?
     if (!pickup_code_matches($pakket, $_POST['pickup_code'] ?? '')) {
-        // Nee: waarschuw de medewerker
+        // Nee, dus de medewerker krijgt een waarschuwing en er gebeurt verder niks.
         set_flash('error', '⚠️ Onjuiste afhaalcode! Vraag de klant om de juiste code uit zijn e-mail of account.');
     } else {
-        // Ja: geef het pakket uit en maak het vak vrij
+        // Ja. Het pakket wordt uitgegeven en het vakje komt vrij.
         hand_out_parcel($pakket);
 
-        // Terug naar het dashboard met een succesmelding
+        // Terug naar het dashboard met een melding dat het gelukt is.
         redirect_with_message(
             '/employee/dashboard.php',
             'success',
@@ -49,18 +51,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Titel en bovenkant van de pagina
+// De titel voor het browsertabblad, en daarna de bovenkant van de pagina.
 $pagina_titel = 'Pakket Uitgeven';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="max-w-md mx-auto card p-6 text-center">
 
-    <!-- Titel -->
+    <!-- De titel -->
     <h1 class="page-title">Afhaalcontrole &amp; Uitgifte</h1>
     <p class="page-subtitle mb-5">Vraag de klant om zijn afhaalcode.</p>
 
-    <!-- Welk pakket moet de medewerker pakken? -->
+    <!-- Welk pakket moet de medewerker uit het vak halen? -->
     <dl class="bg-slate-50 p-4 rounded-xl text-sm text-left mb-5 space-y-2 border border-slate-200">
         <div>
             <dt class="inline text-slate-400">Te pakken vak:</dt>
@@ -76,9 +78,9 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </dl>
 
-    <!-- Formulier om de afhaalcode in te typen -->
+    <!-- Het formulier waar de afhaalcode van de klant wordt ingetypt -->
     <form method="POST" class="space-y-4">
-        <!-- Geheime CSRF-code (beveiliging) -->
+        <!-- Een verborgen geheime code die de site beschermt tegen nepformulieren (CSRF) -->
         <?= csrf_field(); ?>
 
         <div>
@@ -88,17 +90,17 @@ require_once __DIR__ . '/../../includes/header.php';
                    placeholder="PK-XXXX">
         </div>
 
-        <!-- Bevestigen -->
+        <!-- De knop om te bevestigen -->
         <button type="submit" class="btn btn-success w-full py-3">✓ Bevestig Uitgifte &amp; Maak Vak Vrij</button>
     </form>
 
-    <!-- Annuleren -->
+    <!-- Toch maar niet? Dan kun je hier terug. -->
     <a href="/employee/dashboard.php" class="inline-block mt-4 text-sm text-slate-400 hover:text-slate-600">
         Annuleren en terug naar balie
     </a>
 </div>
 
 <?php
-// Onderkant van de pagina
+// En de onderkant van de pagina.
 require_once __DIR__ . '/../../includes/footer.php';
 ?>

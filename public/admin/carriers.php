@@ -1,47 +1,46 @@
 <?php
-// ==============================================================================
-// VERVOERDERS BEHEER (public/admin/carriers.php)
-// ==============================================================================
-// De beheerder kan hier nieuwe vervoerders toevoegen (bijv. FedEx)
-// en ziet een lijst van alle vervoerders.
+// admin/carriers.php
+//
+// Hier voegt de admin nieuwe vervoerders toe, bijvoorbeeld FedEx. Onder het formulier
+// staat een lijst met alle vervoerders.
 
-// Laad alles wat we nodig hebben
+// Eerst alles inladen wat deze pagina nodig heeft.
 require_once __DIR__ . '/../../includes/init.php';
 
-// Alleen admins
+// Alleen admins mogen hier komen.
 require_role('admin');
 
-// Is het formulier verstuurd?
+// Is er net een formulier verstuurd?
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Lees de naam uit
+    // Hoe heet de nieuwe vervoerder?
     $naam = trim($_POST['name'] ?? '');
 
-    // Controleer de invoer
+    // We kijken de invoer stap voor stap na. Bij de eerste fout stoppen we en laten we die zien.
     if ($naam === '') {
         set_flash('error', 'Vul a.u.b. de naam van de vervoerder in.');
     } elseif (is_too_long($naam, 100)) {
         set_flash('error', 'De naam mag maximaal 100 tekens lang zijn.');
     } elseif (carrier_name_exists($naam)) {
-        // Elke vervoerder mag maar 1 keer bestaan
+        // Elke vervoerder mag maar een keer in de lijst staan.
         set_flash('error', "Vervoerder '{$naam}' bestaat al.");
     } else {
-        // Alles goed: toevoegen (een nieuwe vervoerder is altijd actief)
+        // Alles klopt, dus de vervoerder wordt toegevoegd. Een nieuwe vervoerder is altijd actief.
         add_carrier($naam);
         redirect_with_message('/admin/carriers.php', 'success', "Vervoerder '{$naam}' succesvol toegevoegd!");
     }
 }
 
-// Haal alle vervoerders op voor de tabel
+// Alle vervoerders ophalen voor de tabel.
 $vervoerders = get_all_carriers();
 
-// Titel en bovenkant van de pagina
+// De titel voor het browsertabblad, en daarna de bovenkant van de pagina.
 $pagina_titel = 'Vervoerders';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="space-y-6">
 
-    <!-- Titel -->
+    <!-- De titel -->
     <div class="card p-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
             <h1 class="page-title">Vervoerders Beheer</h1>
@@ -50,7 +49,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <a href="/admin/dashboard.php" class="text-sm text-brand-navy font-bold hover:underline">&larr; Terug naar Admin Dashboard</a>
     </div>
 
-    <!-- Formulier: nieuwe vervoerder -->
+    <!-- Het formulier voor een nieuwe vervoerder -->
     <section class="card p-6">
         <h2 class="card-title mb-4">+ Nieuwe Vervoerder Toevoegen</h2>
         <form action="/admin/carriers.php" method="POST" class="flex flex-col sm:flex-row gap-3">
@@ -65,13 +64,13 @@ require_once __DIR__ . '/../../includes/header.php';
         </form>
     </section>
 
-    <!-- Tabel met alle vervoerders -->
+    <!-- De tabel met alle vervoerders -->
     <section class="card overflow-hidden">
         <div class="card-header">
             <h2 class="card-title">Aangesloten Vervoerders (Totaal: <?= count($vervoerders); ?>)</h2>
         </div>
         <?php if (empty($vervoerders)): ?>
-            <!-- Nog geen vervoerders -->
+            <!-- Er zijn nog geen vervoerders -->
             <p class="p-8 text-center text-slate-400 text-sm">Er zijn nog geen vervoerders. Voeg hierboven de eerste vervoerder toe.</p>
         <?php else: ?>
         <div class="overflow-x-auto">
@@ -106,6 +105,6 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <?php
-// Onderkant van de pagina
+// En de onderkant van de pagina.
 require_once __DIR__ . '/../../includes/footer.php';
 ?>

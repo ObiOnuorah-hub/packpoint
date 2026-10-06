@@ -1,23 +1,23 @@
 <?php
-// ==============================================================================
-// PAKKET REGISTREREN (public/employee/register_parcel.php)
-// ==============================================================================
-// De medewerker boekt hier een nieuw pakket in met vervoerder en unieke barcode (FE-04).
-// Het systeem maakt automatisch een unieke afhaalcode voor de klant.
+// employee/register_parcel.php
 //
-// Twee keuzes:
-//   - Binnengekomen: het pakket ligt al aan de balie -> meteen een vrij vak kiezen (FE-05)
-//   - Verwacht:      het pakket is aangekondigd maar nog niet binnen -> nog geen vak nodig
+// Hier boekt de medewerker een nieuw pakket in, met de vervoerder en een unieke barcode.
+// Het systeem verzint er zelf een unieke afhaalcode bij voor de klant.
+//
+// Er zijn twee mogelijkheden:
+//   Binnengekomen  het pakket ligt al aan de balie, dus je kiest meteen een vrij vakje
+//   Verwacht       het pakket is aangekondigd maar nog niet binnen, dus nog geen vakje nodig
 
-// Laad alles wat we nodig hebben
+// Eerst alles inladen wat deze pagina nodig heeft.
 require_once __DIR__ . '/../../includes/init.php';
 
-// Alleen medewerkers en admins mogen pakketten registreren
+// Alleen medewerkers en admins mogen pakketten registreren.
 require_role(['employee', 'admin']);
 
-// Is het formulier verstuurd?
+// Is er net een formulier verstuurd?
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Lees alle velden uit. (int) maakt van de tekst een getal, trim haalt spaties weg.
+    // Alles wat is ingevuld, in een lijstje. (int) maakt van tekst een getal en trim
+    // haalt spaties weg aan het begin en het eind.
     $invoer = [
         'status'          => $_POST['status'] ?? '',
         'carrier_id'      => (int) ($_POST['carrier_id'] ?? 0),
@@ -28,17 +28,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'storage_slot_id' => (int) ($_POST['storage_slot_id'] ?? 0),
     ];
 
-    // Controleer alle invoer op de server (vervoerder bestaat? vak vrij? barcode uniek?)
+    // Alles controleren op de server: bestaat de vervoerder, is het vakje vrij, is de barcode nieuw?
     $fout = validate_parcel_input($invoer);
 
     if ($fout !== null) {
-        // Er klopt iets niet: laat de melding zien
+        // Er klopt iets niet, dus we laten de melding zien.
         set_flash('error', $fout);
     } else {
-        // Sla het pakket op (en zet het vak op bezet als het pakket al binnen is)
+        // Alles klopt. Het pakket wordt opgeslagen, en als het al binnen is ook het vakje bezet.
         $afhaalcode = register_parcel($invoer, current_user()['id']);
 
-        // Gelukt! Terug naar het dashboard met een melding die past bij de keuze
+        // Gelukt! We kiezen een melding die past bij wat de medewerker deed.
         if ($invoer['status'] === 'expected') {
             $bericht = "Pakket aangemeld als verwacht. Afhaalcode: $afhaalcode";
         } else {
@@ -48,26 +48,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Haal de keuzelijsten op: actieve vervoerders en vrije vakken
+// De lijsten voor de keuzemenu's: de actieve vervoerders en de vrije vakjes.
 $vervoerders = get_active_carriers();
 $vrije_vakken = get_free_slots();
 
-// Welke waarden waren al gekozen? (bij een fout, of als je via 'Gebruik vak' komt)
+// Wat was er al gekozen? Dat is zo na een foutmelding, of als je via 'Gebruik vak' op
+// het vakkenraster komt, dan staat dat vakje al klaar.
 $gekozen_status = ($_POST['status'] ?? 'arrived') === 'expected' ? 'expected' : 'arrived';
 $gekozen_vervoerder = (int) ($_POST['carrier_id'] ?? 0);
 $gekozen_vak = (int) ($_POST['storage_slot_id'] ?? $_GET['slot_id'] ?? 0);
 
-// Titel en bovenkant van de pagina
+// De titel voor het browsertabblad, en daarna de bovenkant van de pagina.
 $pagina_titel = 'Pakket Registreren';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="max-w-xl mx-auto card p-6">
-    <!-- Titel -->
+    <!-- De titel -->
     <h1 class="page-title">Pakket Registreren (Intake)</h1>
     <p class="page-subtitle mb-6">Boek een nieuw pakket in. Ligt het al aan de balie? Wijs dan meteen een opslagvak toe.</p>
 
-    <!-- Waarschuwing als er geen vrije vakken meer zijn -->
+    <!-- Een waarschuwing als er geen vrije vakjes meer zijn -->
     <?php if (empty($vrije_vakken)): ?>
         <div class="alert alert-warning">
             ⚠️ <strong>Let op:</strong> er zijn geen vrije opslagvakken. Je kunt alleen verwachte pakketten aanmelden. Vraag een beheerder om nieuwe vakken aan te maken.
@@ -75,14 +76,14 @@ require_once __DIR__ . '/../../includes/header.php';
     <?php endif; ?>
 
     <form method="POST" action="/employee/register_parcel.php" class="space-y-4">
-        <!-- Geheime CSRF-code (beveiliging) -->
+        <!-- Een verborgen geheime code die de site beschermt tegen nepformulieren (CSRF) -->
         <?= csrf_field(); ?>
 
-        <!-- Is het pakket er al, of wordt het verwacht? -->
+        <!-- Is het pakket er al, of wordt het nog verwacht? -->
         <fieldset>
             <legend class="label">Status van het pakket *</legend>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <!-- Keuze 1: binnengekomen -->
+                <!-- Keuze 1: het pakket is binnen -->
                 <label class="flex items-start gap-2 p-3 border border-slate-300 rounded-lg cursor-pointer hover:border-brand-sky">
                     <input type="radio" name="status" value="arrived" class="mt-1" onchange="toggleSlotChoice()"
                            <?= $gekozen_status === 'arrived' ? 'checked' : ''; ?>>
@@ -92,7 +93,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     </span>
                 </label>
 
-                <!-- Keuze 2: verwacht -->
+                <!-- Keuze 2: het pakket wordt verwacht -->
                 <label class="flex items-start gap-2 p-3 border border-slate-300 rounded-lg cursor-pointer hover:border-brand-sky">
                     <input type="radio" name="status" value="expected" class="mt-1" onchange="toggleSlotChoice()"
                            <?= $gekozen_status === 'expected' ? 'checked' : ''; ?>>
@@ -104,7 +105,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </fieldset>
 
-        <!-- Vervoerder kiezen -->
+        <!-- De vervoerder kiezen -->
         <div>
             <label for="carrier_id" class="label">Vervoerder *</label>
             <select id="carrier_id" name="carrier_id" required class="input">
@@ -117,7 +118,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </select>
         </div>
 
-        <!-- Barcode / Track & Trace -->
+        <!-- De barcode (track & trace) van het pakket -->
         <div>
             <label for="tracking_code" class="label">Track &amp; Trace barcode *</label>
             <input type="text" id="tracking_code" name="tracking_code" value="<?= old('tracking_code'); ?>"
@@ -125,25 +126,25 @@ require_once __DIR__ . '/../../includes/header.php';
                    placeholder="Scan de barcode of typ hem over">
         </div>
 
-        <!-- Gegevens van de klant -->
+        <!-- De gegevens van de klant voor wie het pakket is -->
         <fieldset class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
             <legend class="px-1 text-xs font-bold text-slate-700 uppercase tracking-wider">Gegevens ontvanger</legend>
 
-            <!-- Naam ontvanger -->
+            <!-- De naam -->
             <div>
                 <label for="customer_name" class="label">Naam ontvanger *</label>
                 <input type="text" id="customer_name" name="customer_name" value="<?= old('customer_name'); ?>"
                        maxlength="100" required class="input" placeholder="Volledige naam klant">
             </div>
 
-            <!-- E-mail ontvanger (hiermee ziet de klant het pakket op zijn dashboard) -->
+            <!-- Het e-mailadres. Daarmee ziet de klant het pakket op zijn eigen scherm. -->
             <div>
                 <label for="customer_email" class="label">E-mailadres klant *</label>
                 <input type="email" id="customer_email" name="customer_email" value="<?= old('customer_email'); ?>"
                        maxlength="150" required class="input" placeholder="klant@voorbeeld.nl">
             </div>
 
-            <!-- Telefoon ontvanger (niet verplicht) -->
+            <!-- Het telefoonnummer, dat hoeft niet -->
             <div>
                 <label for="customer_phone" class="label">Telefoonnummer (optioneel)</label>
                 <input type="tel" id="customer_phone" name="customer_phone" value="<?= old('customer_phone'); ?>"
@@ -151,7 +152,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </fieldset>
 
-        <!-- Opslagvak kiezen (alleen vrije vakken staan in de lijst). Verborgen bij 'Verwacht'. -->
+        <!-- Het vakje kiezen. In de lijst staan alleen vrije vakjes. Bij 'Verwacht' verbergen we dit stuk. -->
         <div id="vakkeuze">
             <label for="storage_slot_id" class="label">Opslagvak toewijzen (kies een vrij vak) *</label>
             <select id="storage_slot_id" name="storage_slot_id" class="input font-bold text-brand-navy">
@@ -164,24 +165,24 @@ require_once __DIR__ . '/../../includes/header.php';
             </select>
         </div>
 
-        <!-- Opslaan -->
+        <!-- De knop om op te slaan -->
         <button type="submit" class="btn btn-primary w-full py-3">Pakket Opslaan &amp; Afhaalcode Genereren</button>
     </form>
 </div>
 
 <script>
-    // Laat de vakkeuze alleen zien als 'Binnengekomen' is gekozen.
-    // (Dit is alleen gemak. De server controleert het ook!)
+    // Laat de vakkeuze alleen zien als 'Binnengekomen' is gekozen. Dit is puur gemak voor
+    // de gebruiker, want de server controleert het zelf nog een keer.
     function toggleSlotChoice() {
         const isBinnen = document.querySelector('input[name="status"][value="arrived"]').checked;
         document.getElementById('vakkeuze').style.display = isBinnen ? 'block' : 'none';
     }
 
-    // Meteen 1 keer uitvoeren als de pagina laadt
+    // Een keer meteen uitvoeren als de pagina opent.
     toggleSlotChoice();
 </script>
 
 <?php
-// Onderkant van de pagina
+// En de onderkant van de pagina.
 require_once __DIR__ . '/../../includes/footer.php';
 ?>

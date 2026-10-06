@@ -1,13 +1,12 @@
 <?php
-// ==============================================================================
-// STARTPAGINA (public/index.php)
-// ==============================================================================
-// Deze pagina laat zelf niks zien. Hij stuurt je meteen door:
-//   - niet ingelogd -> naar de loginpagina
-//   - wel ingelogd  -> naar het dashboard van jouw rol
+// index.php
+//
+// De startpagina laat zelf niks zien, hij verwijst je meteen door:
+//   niet ingelogd  ->  naar de loginpagina
+//   wel ingelogd   ->  naar het startscherm van jouw rol
 
-// Laad alles wat we nodig hebben (database, sessie, functies)
+// Eerst alles inladen wat we nodig hebben.
 require_once __DIR__ . '/../includes/init.php';
 
-// Stuur de bezoeker naar de juiste plek
+// En dan de bezoeker naar de juiste plek sturen.
 redirect_to_dashboard();

@@ -1,18 +1,18 @@
--- ==============================================================================
--- PACKPOINT DATABASE SCHEMA (MySQL / MariaDB)
--- ==============================================================================
--- Dit bestand maakt alle tabellen aan en vult ze met testgegevens.
+-- schema.sql
 --
--- ZO IMPORTEER JE HEM:
---   1. Maak eerst een lege database aan
---      - lokaal (XAMPP): in phpMyAdmin, met de naam 'packpoint'
---      - op PLESK: via 'Databases' > 'Database toevoegen'
---   2. Klik in phpMyAdmin links op die database
---   3. Klik bovenaan op 'Importeren', kies dit bestand en klik op 'Starten'
+-- De database van PackPoint (MySQL / MariaDB). Dit bestand maakt alle tabellen aan en
+-- zet er een paar testgegevens in.
 --
--- Wil je opnieuw beginnen? Maak de database dan eerst leeg (alle tabellen verwijderen).
+-- Zo zet je het in de database:
+--   1. Maak eerst een lege database aan.
+--        Lokaal met XAMPP: in phpMyAdmin, met de naam 'packpoint'.
+--        Op PLESK: via 'Databases' en dan 'Database toevoegen'.
+--   2. Klik in phpMyAdmin links op die database.
+--   3. Klik bovenaan op 'Importeren', kies dit bestand en klik op 'Starten'.
 --
--- RELATIES TUSSEN DE TABELLEN (foreign keys):
+-- Wil je opnieuw beginnen? Maak de database dan eerst leeg, dus alle tabellen verwijderen.
+--
+-- Hoe de tabellen aan elkaar hangen (dat noemen we "foreign keys"):
 --
 --   users (1) ──────< parcels.customer_id          een klant kan meerdere pakketten hebben
 --   users (1) ──────< parcels.received_by_user_id  een medewerker kan meerdere pakketten innemen
@@ -20,24 +20,20 @@
 --   storage_slots (1) < parcels.storage_slot_id    een pakket ligt in 1 opslagvak
 
 
--- ------------------------------------------------------------------------------
--- 1. TABEL: users (alle gebruikers: klanten, baliemedewerkers en beheerders)
--- ------------------------------------------------------------------------------
+-- De tabel met alle gebruikers: klanten, baliemedewerkers en beheerders.
 CREATE TABLE IF NOT EXISTS users (
     id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,           -- uniek nummer, telt vanzelf op
     username      VARCHAR(50)  NOT NULL UNIQUE,                       -- inlognaam (bijv. klant01), mag maar 1 keer voorkomen
     name          VARCHAR(100) NOT NULL,                              -- volledige naam
     email         VARCHAR(150) NOT NULL UNIQUE,                       -- e-mailadres, mag maar 1 keer voorkomen
     phone         VARCHAR(20)  NULL,                                  -- telefoonnummer (niet verplicht)
-    password_hash VARCHAR(255) NOT NULL,                              -- GEHASHT wachtwoord (nooit het echte wachtwoord!)
+    password_hash VARCHAR(255) NOT NULL,                              -- de hash van het wachtwoord, nooit het echte wachtwoord
     role          ENUM('customer', 'employee', 'admin') NOT NULL DEFAULT 'customer', -- rol: klant, medewerker of admin
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP         -- wanneer het account is gemaakt
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ------------------------------------------------------------------------------
--- 2. TABEL: carriers (vervoerders zoals PostNL en DHL)
--- ------------------------------------------------------------------------------
+-- De vervoerders, zoals PostNL en DHL.
 CREATE TABLE IF NOT EXISTS carriers (
     id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,               -- uniek nummer
     name      VARCHAR(100) NOT NULL UNIQUE,                           -- naam van de vervoerder
@@ -45,9 +41,7 @@ CREATE TABLE IF NOT EXISTS carriers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ------------------------------------------------------------------------------
--- 3. TABEL: storage_slots (opslagvakken in de stellingen)
--- ------------------------------------------------------------------------------
+-- De opslagvakjes in de stellingen.
 CREATE TABLE IF NOT EXISTS storage_slots (
     id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,               -- uniek nummer
     slot_code VARCHAR(10)  NOT NULL UNIQUE,                           -- code van het vak (bijv. A-01)
@@ -56,13 +50,11 @@ CREATE TABLE IF NOT EXISTS storage_slots (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ------------------------------------------------------------------------------
--- 4. TABEL: parcels (de pakketten)
--- ------------------------------------------------------------------------------
+-- De pakketten. Deze tabel verwijst naar de andere drie.
 CREATE TABLE IF NOT EXISTS parcels (
     id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,     -- uniek nummer
-    tracking_code       VARCHAR(50)  NOT NULL UNIQUE,                 -- barcode van de vervoerder (uniek = TE-07)
-    pickup_code         VARCHAR(10)  NOT NULL UNIQUE,                 -- afhaalcode voor de klant (uniek = TE-08)
+    tracking_code       VARCHAR(50)  NOT NULL UNIQUE,                 -- barcode van de vervoerder, elke code mag maar een keer voorkomen
+    pickup_code         VARCHAR(10)  NOT NULL UNIQUE,                 -- afhaalcode voor de klant, ook die is altijd uniek
     carrier_id          INT UNSIGNED NOT NULL,                        -- welke vervoerder (verwijst naar carriers.id)
     storage_slot_id     INT UNSIGNED NULL,                            -- in welk vak (verwijst naar storage_slots.id)
     customer_id         INT UNSIGNED NULL,                            -- klant-account, als die bestaat (verwijst naar users.id)
@@ -75,12 +67,12 @@ CREATE TABLE IF NOT EXISTS parcels (
     picked_up_at        DATETIME NULL,                                -- wanneer opgehaald (of retour gegaan)
     received_by_user_id INT UNSIGNED NOT NULL,                        -- welke medewerker het pakket heeft ingeboekt
 
-    -- Indexen maken zoeken sneller
+    -- Een index maakt zoeken sneller, een beetje zoals de index achter in een boek.
     INDEX idx_parcels_status (status),
     INDEX idx_parcels_customer_email (customer_email),
 
-    -- FOREIGN KEYS: zo weet MySQL hoe de tabellen aan elkaar vastzitten
-    -- en kun je bijvoorbeeld geen pakket opslaan met een vervoerder die niet bestaat
+    -- De foreign keys vertellen MySQL hoe de tabellen aan elkaar hangen. Daardoor kun je
+    -- bijvoorbeeld geen pakket opslaan van een vervoerder die niet bestaat.
     CONSTRAINT fk_parcels_carrier  FOREIGN KEY (carrier_id)          REFERENCES carriers(id),
     CONSTRAINT fk_parcels_slot     FOREIGN KEY (storage_slot_id)     REFERENCES storage_slots(id) ON DELETE SET NULL,
     CONSTRAINT fk_parcels_customer FOREIGN KEY (customer_id)         REFERENCES users(id)         ON DELETE SET NULL,
@@ -88,11 +80,9 @@ CREATE TABLE IF NOT EXISTS parcels (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ==============================================================================
--- TESTGEGEVENS (SEED DATA)
--- ==============================================================================
+-- Vanaf hier komen de testgegevens, zodat je meteen iets ziet als je de app opent.
 
--- Standaard vervoerders
+-- Een paar vervoerders
 INSERT INTO carriers (id, name, is_active) VALUES
 (1, 'PostNL', 1),
 (2, 'DHL Express', 1),
@@ -100,7 +90,7 @@ INSERT INTO carriers (id, name, is_active) VALUES
 (4, 'UPS', 1),
 (5, 'Amazon', 1);
 
--- Standaard opslagvakken in Stelling A en Stelling B
+-- Wat vakjes in Stelling A en Stelling B
 INSERT INTO storage_slots (id, slot_code, rack, status) VALUES
 (1, 'A-01', 'Stelling A', 'occupied'),
 (2, 'A-02', 'Stelling A', 'occupied'),
@@ -110,7 +100,8 @@ INSERT INTO storage_slots (id, slot_code, rack, status) VALUES
 (6, 'B-01', 'Stelling B', 'free'),
 (7, 'B-02', 'Stelling B', 'free');
 
--- De 3 testaccounts. De wachtwoorden zijn gehasht met password_hash() in PHP:
+-- De drie testaccounts. De wachtwoorden staan hier als hash (gemaakt met password_hash in PHP),
+-- dit zijn de echte wachtwoorden om mee in te loggen:
 --   admin01 / admin123   (beheerder)
 --   balie01 / balie123   (baliemedewerker)
 --   klant01 / klant123   (klant)
@@ -119,7 +110,7 @@ INSERT INTO users (id, username, name, email, phone, password_hash, role) VALUES
 (2, 'balie01', 'Janine Balie (Medewerker)', 'balie@packpoint.nl',  '0687654321', '$2y$10$qQrz7gPIS2FJTYgc7SEUxeHhClIYwlc5uAfDfZDYJvOtr/RLFNwAS', 'employee'),
 (3, 'klant01', 'John Doe (Klant)',          'johndoe@example.com', '0611223344', '$2y$10$N9QFc7E7XXiNiG0n.KWmlue2FiBOSBYFOEsQaJkiqwq5KAVCGXEO.', 'customer');
 
--- Testpakket 1: ligt klaar om opgehaald te worden (in vak A-01)
+-- Testpakket 1: ligt klaar om opgehaald te worden, in vak A-01
 INSERT INTO parcels (id, tracking_code, pickup_code, carrier_id, storage_slot_id, customer_id, customer_name, customer_email, customer_phone, status, received_at, pickup_deadline, received_by_user_id) VALUES
 (1, '3S123456789NL', 'PK-7X9B', 1, 1, 3, 'John Doe', 'johndoe@example.com', '0611223344', 'arrived', NOW() - INTERVAL 2 DAY, NOW() + INTERVAL 5 DAY, 2);
 
@@ -127,7 +118,7 @@ INSERT INTO parcels (id, tracking_code, pickup_code, carrier_id, storage_slot_id
 INSERT INTO parcels (id, tracking_code, pickup_code, carrier_id, storage_slot_id, customer_id, customer_name, customer_email, customer_phone, status, received_at, pickup_deadline, received_by_user_id) VALUES
 (2, 'DHL-987654321', 'PK-3M2K', 2, 2, 3, 'John Doe', 'johndoe@example.com', '0611223344', 'arrived', NOW() - INTERVAL 10 DAY, NOW() - INTERVAL 3 DAY, 2);
 
--- Testpakket 3: is aangekondigd maar nog NIET binnen (status 'expected', nog geen vak en geen deadline)
+-- Testpakket 3: is aangekondigd maar nog niet binnen (status 'expected'), dus nog geen vakje en geen deadline
 INSERT INTO parcels (id, tracking_code, pickup_code, carrier_id, storage_slot_id, customer_id, customer_name, customer_email, customer_phone, status, received_at, pickup_deadline, received_by_user_id) VALUES
 (3, '1Z999AA10123456784', 'PK-8Q4N', 4, NULL, 3, 'John Doe', 'johndoe@example.com', '0611223344', 'expected', NOW() - INTERVAL 1 DAY, NULL, 2);
 

@@ -1,176 +1,176 @@
 <?php
-// ==============================================================================
-// SESSIES, INLOGGEN & ROLLEN (includes/auth.php)
-// ==============================================================================
-// Dit bestand heeft 2 delen:
-//   DEEL 1: sessiebeheer (veilige sessie, meldingen, CSRF-beveiliging)
-//   DEEL 2: inloggen, uitloggen, rollen en rechten
+// auth.php
 //
-// UITLEG VOOR IEDEREEN:
-//   - Een SESSIE is het geheugen van de website voor 1 bezoeker. Zo weet de website
-//     bij elke nieuwe pagina nog steeds wie er is ingelogd (net als een armbandje
-//     dat je bij de ingang van een festival krijgt).
-//   - Een ROL is wat je mag: klant, baliemedewerker of beheerder.
-//   - Een WACHTWOORD slaan we nooit op. We slaan alleen een 'hash' op: een onleesbare
-//     versie van het wachtwoord, die je niet kunt terugdraaien.
-//   - Een COOKIE is een klein bestandje in je browser. Daar staat je 'armbandje' in.
+// Dit bestand is het beveiligingshart van PackPoint. Het doet twee dingen:
+//   Deel 1  sessies, meldingen en de CSRF-beveiliging
+//   Deel 2  inloggen, uitloggen en rollen (wie mag welke pagina zien?)
+//
+// Een paar begrippen die je hier tegenkomt, zodat je ze zo kunt uitleggen:
+//
+//   Sessie      Een website onthoudt van zichzelf niks tussen twee klikken. Een sessie
+//               is het geheugen van de server: zodra je inlogt, weet de server bij
+//               elke volgende pagina nog steeds wie je bent.
+//   Cookie      Een klein bestandje in je browser met alleen je sessienummer erin,
+//               een beetje zoals het bandje om je pols op een festival. Bij elke klik
+//               laat je browser dat bandje zien.
+//   Hash        Wachtwoorden slaan we nooit leesbaar op. We maken er een "hash" van,
+//               en die kun je niet terugdraaien. Net zoals je van een appeltaart geen
+//               appels meer kunt maken. Ook als iemand de database steelt, heeft hij
+//               dus geen bruikbare wachtwoorden.
+//   Rol         Klant, baliemedewerker of beheerder. Elke rol mag andere dingen.
+//               Dit heet ook wel Role Based Access Control, afgekort RBAC.
 
-// ==============================================================================
-// DEEL 1: SESSIEBEHEER
-// ==============================================================================
-// Een sessie is het 'geheugen' van de server per bezoeker.
-// Hierin onthouden we wie er is ingelogd, meldingen voor de volgende pagina
-// en een geheime CSRF-code om formulieren te beveiligen.
 
-// ------------------------------------------------------------------------------
-// 1. VEILIGE SESSIE STARTEN
-// ------------------------------------------------------------------------------
+// ------------------------------------------------------------------
+// Deel 1: sessies, meldingen en CSRF
+// ------------------------------------------------------------------
 
-// Start de sessie met veilige instellingen
+// Start de sessie, met alle beveiligingsinstellingen voor het cookie.
 function start_secure_session(): void
 {
-    // Is de sessie al gestart? Dan hoeven we niks te doen.
-    // 'return' zonder iets erachter betekent: "stop hier met deze functie".
+    // Loopt de sessie al? Dan hoeven we niks meer te doen.
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
 
-    // Accepteer alleen sessie-ID's die de server zelf heeft gemaakt
-    // (zo kan een hacker jou geen eigen sessie-ID 'toeschuiven')
+    // Alleen sessienummers accepteren die onze eigen server heeft bedacht. Zo kan een
+    // hacker jou niet vooraf een eigen verzonnen nummer opdringen (dat heet "session fixation").
     ini_set('session.use_strict_mode', '1');
 
-    // Stel het sessie-cookie veilig in
+    // Nu de instellingen van het cookie zelf.
     session_set_cookie_params([
-        'lifetime' => 0,                       // cookie verdwijnt als de browser sluit
-        'path'     => '/',                     // cookie geldt voor de hele website
-        'httponly' => true,                    // JavaScript kan het cookie niet lezen (tegen XSS)
-        'samesite' => 'Lax',                   // andere websites kunnen het cookie niet meesturen
-        'secure'   => !empty($_SERVER['HTTPS']), // via HTTPS? Dan alleen via HTTPS versturen
+        // 0 betekent: het cookie verdwijnt als je de browser sluit. Handig op een
+        // gedeelde computer, bijvoorbeeld op school, zodat niemand na jou nog ingelogd is.
+        'lifetime' => 0,
+
+        // Het cookie geldt voor de hele website.
+        'path'     => '/',
+
+        // JavaScript kan dit cookie niet uitlezen. Komt er toch kwaadaardige code
+        // op de pagina, dan kan die je sessie in elk geval niet stelen.
+        'httponly' => true,
+
+        // Andere websites kunnen dit cookie niet zomaar meesturen bij een stiekeme
+        // aanvraag. Dat helpt tegen CSRF (zie verderop).
+        'samesite' => 'Lax',
+
+        // Staat de site op https? Dan sturen we het cookie ook alleen via https.
+        'secure'   => !empty($_SERVER['HTTPS']),
     ]);
 
-    // Start de sessie
+    // En dan de sessie echt starten.
     session_start();
 }
 
-// ------------------------------------------------------------------------------
-// 2. MELDINGEN (FLASH MESSAGES)
-// ------------------------------------------------------------------------------
-// Een 'flash' melding wordt 1 keer getoond en verdwijnt daarna.
-// Handig na een redirect: "Pakket opgeslagen!" op de volgende pagina.
-// Types: 'success' (groen), 'error' (rood), 'warning' (geel)
+// Meldingen zoals "Pakket opgeslagen!" noemen we flash-meldingen.
+// Na het opslaan van een formulier sturen we je door naar een andere pagina, en daar
+// laten we de melding precies een keer zien. Daarna is hij weg.
 
-// Zet een melding klaar
+// Zet een melding klaar. Het type is 'success', 'error' of 'warning'.
 function set_flash(string $type, string $bericht): void
 {
-    // $_SESSION is het geheugen van deze bezoeker.
-    // De [] erachter betekent: "zet dit onderaan in het lijstje" (er kunnen meerdere meldingen zijn).
+    // $_SESSION is het geheugen van deze bezoeker. De [] betekent: zet het onderaan
+    // in de lijst, want er kunnen meerdere meldingen tegelijk zijn.
     $_SESSION['flash'][] = ['type' => $type, 'message' => $bericht];
 }
 
-// Haal alle meldingen op en gooi ze daarna weg (zodat ze maar 1 keer verschijnen)
+// Haalt alle meldingen op en gooit ze meteen weg, zodat je ze niet twee keer ziet.
 function get_flashes(): array
 {
-    // Pak de meldingen. De '?? []' betekent: "zijn er geen? Neem dan een lege lijst".
+    // Zijn er geen meldingen? Dan nemen we een lege lijst. Dat doet '?? []'.
     $meldingen = $_SESSION['flash'] ?? [];
 
-    // Verwijder ze uit het geheugen (unset = weggooien), anders zie je ze elke keer weer
+    // Weggooien uit het geheugen.
     unset($_SESSION['flash']);
 
-    // Geef ze terug zodat header.php ze kan laten zien
+    // header.php zet ze daarna als gekleurde blokjes op het scherm.
     return $meldingen;
 }
 
-// ------------------------------------------------------------------------------
-// 3. CSRF BESCHERMING
-// ------------------------------------------------------------------------------
-// CSRF = een andere website laat jouw browser stiekem een formulier versturen.
-// Oplossing: elk formulier krijgt een geheime code mee. Klopt de code niet? Dan weigeren we.
+// Dan CSRF, een lastige afkorting voor een simpel probleem.
+//
+// Stel: je bent ingelogd op PackPoint en opent in een ander tabblad een foute website.
+// Die site stuurt stiekem een formulier naar PackPoint om iets te verwijderen. Je browser
+// stuurt je cookie automatisch mee, dus PackPoint zou denken dat jij het was.
+//
+// De oplossing: elk formulier krijgt een geheime code mee die ook in jouw sessie op de
+// server staat. De foute website kent die code niet en kan dus niks versturen.
 
-// Geeft de geheime code van deze sessie (maakt er een als die er nog niet is)
+// Geeft de geheime code van deze sessie. Is er nog geen, dan maakt hij er een.
 function csrf_token(): string
 {
-    // Nog geen code? Maak een willekeurige, onvoorspelbare code van 64 tekens
     if (empty($_SESSION['csrf_token'])) {
+        // random_bytes maakt echt onvoorspelbare getallen, en bin2hex schrijft ze op
+        // als 64 leesbare tekens.
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
-    // Geef de code terug
     return $_SESSION['csrf_token'];
 }
 
-// Maakt een verborgen invoerveld met de code. Zet csrf_field() in ELK formulier met method POST.
+// Maakt het verborgen veld met de code. Zet dit in elk formulier met method POST.
 function csrf_field(): string
 {
     return '<input type="hidden" name="csrf_token" value="' . csrf_token() . '">';
 }
 
-// Controleert of de meegestuurde code klopt. Wordt automatisch aangeroepen in init.php
+// Controleert of het formulier de goede code meestuurt. init.php roept dit zelf aan
+// bij elk formulier, dus de pagina's hoeven er niet aan te denken.
 function check_csrf(): void
 {
-    // Welke code stuurde het formulier mee?
+    // Welke code stuurde het formulier mee? Staat er niks? Dan een lege tekst.
     $meegestuurd = $_POST['csrf_token'] ?? '';
 
-    // Vergelijk de meegestuurde code met de code die wij hebben onthouden.
-    // (hash_equals is een extra veilige manier om twee teksten te vergelijken.)
-    // Het uitroepteken betekent "NIET": dus "als de codes NIET gelijk zijn...".
+    // We vergelijken met hash_equals en niet met een gewoon ===. Een gewone vergelijking
+    // stopt zodra het eerste teken niet klopt, en een hacker kan aan die minimale
+    // tijdverschillen afleiden hoeveel tekens hij al goed had. hash_equals kijkt altijd
+    // naar alle tekens en lekt dus niks. Het uitroepteken ervoor betekent "niet".
     if (!hash_equals(csrf_token(), $meegestuurd)) {
-        // Code klopt niet: stop direct. 400 is de internetcode voor "foute aanvraag".
+        // Klopt de code niet, of ontbreekt hij? Dan stoppen we meteen.
+        // 400 is de internetcode voor "foute aanvraag".
         http_response_code(400);
-        exit('Ongeldig formulier. Ga terug, vernieuw de pagina en probeer het opnieuw.');
+        exit('Ongeldig formulier (CSRF-beveiliging). Ga terug, vernieuw de pagina en probeer het opnieuw.');
     }
 }
 
-// ==============================================================================
-// DEEL 2: INLOGGEN, ROLLEN & RECHTEN
-// ==============================================================================
-// Hier staat alles over:
-//   - inloggen en uitloggen
-//   - wie er nu is ingelogd
-//   - welke rollen er zijn en wat elke rol mag zien (Role Based Access Control)
-//
-// HOE WERKT INLOGGEN?
-//   1. Gebruiker vult gebruikersnaam + wachtwoord in op login.php
-//   2. login() zoekt de gebruiker op in de database
-//   3. password_verify() controleert of het wachtwoord bij de opgeslagen hash past
-//   4. Klopt het? Dan zetten we het user_id in de sessie
-//   5. Elke pagina roept require_role() aan om te controleren of je er mag komen
 
-// ------------------------------------------------------------------------------
-// 1. DE ROLLEN
-// ------------------------------------------------------------------------------
-// Links staat hoe de rol in de database heet, rechts de nette Nederlandse naam.
-// Nieuwe rol nodig? Voeg hem hier toe én in de ENUM van users.role in sql/schema.sql.
+// ------------------------------------------------------------------
+// Deel 2: inloggen, rollen en rechten
+// ------------------------------------------------------------------
+
+// De drie rollen. Links staat hoe ze in de database heten, rechts hoe ze op het scherm staan.
+// Komt er een rol bij? Zet hem dan hier neer en ook in de ENUM van users.role in schema.sql.
 const ROLES = [
     'customer' => 'Klant',
     'employee' => 'Baliemedewerker',
     'admin'    => 'Beheerder',
 ];
 
-// Geeft de nette naam van een rol, bijv. 'employee' wordt 'Baliemedewerker'
+// Geeft de nette naam van een rol, bijvoorbeeld 'employee' wordt 'Baliemedewerker'.
 function role_label(string $rol): string
 {
-    // Zoek de rol op in de lijst hierboven. Staat hij er niet in? Dan geven we de rol zelf terug.
+    // Staat de rol niet in de lijst hierboven? Dan geven we de rol zelf terug.
     return ROLES[$rol] ?? $rol;
 }
 
-// Geeft een gekleurd labeltje voor een rol (geel = admin, blauw = medewerker, grijs = klant)
+// Maakt een klein gekleurd labeltje voor een rol: geel voor admin, blauw voor
+// medewerker en grijs voor klant.
 function role_badge(string $rol): string
 {
-    // Kies de kleur bij de rol (een keuzelijst: "als de rol dit is, dan deze kleur")
+    // Een keuzelijst: is de rol dit, dan deze kleur.
     $kleur = match ($rol) {
         'admin'    => 'bg-amber-100 text-amber-900',
         'employee' => 'bg-sky-100 text-sky-900',
         default    => 'bg-slate-100 text-slate-700',
     };
 
-    // Maak er een klein gekleurd labeltje van. h() maakt de tekst veilig om te tonen.
+    // h() maakt de tekst veilig om te tonen.
     return '<span class="badge ' . $kleur . '">' . h(role_label($rol)) . '</span>';
 }
 
-// Geeft het adres van het dashboard dat bij een rol hoort
+// Welk startscherm hoort bij welke rol?
 function dashboard_url(string $rol): string
 {
-    // match (PHP 8) kiest de waarde die bij de rol past
     return match ($rol) {
         'customer' => '/customer/dashboard.php',
         'admin'    => '/admin/dashboard.php',
@@ -178,26 +178,22 @@ function dashboard_url(string $rol): string
     };
 }
 
-// Stuurt de ingelogde gebruiker door naar zijn eigen dashboard
+// Stuurt de ingelogde gebruiker naar zijn eigen startscherm.
 function redirect_to_dashboard(): void
 {
-    // Haal de ingelogde gebruiker op
     $gebruiker = current_user();
 
-    // Stuur door naar het juiste dashboard. Dit stukje lees je zo:
-    //   is er een gebruiker?  ja  -> dashboard van zijn rol
-    //                         nee -> de loginpagina
+    // Dit lees je zo: is er een gebruiker? Dan naar het startscherm van zijn rol.
+    // Is er niemand ingelogd? Dan naar de loginpagina.
     header('Location: ' . ($gebruiker ? dashboard_url($gebruiker['role']) : '/login.php'));
-
-    // Stop dit script meteen
     exit;
 }
 
-// Geeft de menu-knoppen die een rol mag zien (wordt gebruikt in header.php)
-// Nieuwe pagina gemaakt? Zet hem hier in het menu bij de juiste rol(len).
+// Bepaalt welke knoppen iemand in het menu ziet, afhankelijk van zijn rol.
+// Maak je een nieuwe pagina? Zet hem hier in het menu bij de juiste rol.
 function menu_items(string $rol): array
 {
-    // Menu voor klanten
+    // Een klant ziet alleen zijn eigen pakketten en zijn profiel.
     if ($rol === 'customer') {
         return [
             '/customer/dashboard.php' => 'Mijn Pakketten',
@@ -205,7 +201,7 @@ function menu_items(string $rol): array
         ];
     }
 
-    // Menu voor baliemedewerkers (de admin krijgt deze knoppen ook)
+    // De knoppen voor de balie. De admin krijgt deze ook.
     $menu = [
         '/employee/dashboard.php'       => 'Balie Snelzoeken',
         '/employee/register_parcel.php' => '+ Pakket Registreren',
@@ -213,105 +209,95 @@ function menu_items(string $rol): array
         '/employee/overdue.php'         => 'Te Lang Liggen',
     ];
 
-    // De admin krijgt er nog extra beheer-knoppen bij
+    // De admin heeft er nog de beheerknoppen bij. Het Admin Dashboard zetten we vooraan.
     if ($rol === 'admin') {
-        // Admin dashboard als eerste knop in het menu (het + plakt twee lijstjes aan elkaar)
         $menu = ['/admin/dashboard.php' => '👑 Admin Dashboard'] + $menu;
         $menu['/admin/users.php'] = 'Gebruikers';
         $menu['/admin/slots_manage.php'] = 'Vakken Beheer';
         $menu['/admin/carriers.php'] = 'Vervoerders';
     }
 
-    // Geef het menu terug
     return $menu;
 }
 
-// ------------------------------------------------------------------------------
-// 2. INLOGGEN & UITLOGGEN
-// ------------------------------------------------------------------------------
-
-// Probeert in te loggen. Geeft true terug als het gelukt is, anders false.
+// Probeert in te loggen. Geeft true terug als het lukt, anders false.
 function login(string $inlognaam, string $wachtwoord): bool
 {
-    // Zoek de gebruiker op gebruikersnaam of e-mailadres
+    // Zoek het account op, met de gebruikersnaam of het e-mailadres.
     $gebruiker = find_user_by_login($inlognaam);
 
-    // Bestaat de gebruiker niet? Dan stoppen we met 'false' ("inloggen mislukt").
-    // (We zeggen bewust niet of de naam of het wachtwoord fout is, anders weet een hacker welke namen bestaan.)
+    // Bestaat het account niet? Dan geven we gewoon false terug. We zeggen bewust
+    // niet of de naam of het wachtwoord fout was. Anders kan een hacker uitproberen
+    // welke namen wel bestaan.
     if (!$gebruiker) {
         return false;
     }
 
-    // Controleer of het wachtwoord past bij de opgeslagen hash
-    // (password_verify hasht het ingevulde wachtwoord en vergelijkt de uitkomst)
+    // Klopt het wachtwoord? password_verify maakt van wat je intypt opnieuw een hash en
+    // kijkt of die overeenkomt met de hash in de database. We slaan wachtwoorden nooit
+    // leesbaar op, dus zo controleren we het.
     if (!password_verify($wachtwoord, $gebruiker['password_hash'])) {
         return false;
     }
 
-    // Maak een NIEUW sessie-ID aan na het inloggen (tegen 'session fixation')
+    // Een belangrijk moment. Je bent nu van onbekende bezoeker ingelogde gebruiker
+    // geworden, dus geven we je een nieuw sessienummer en vernietigen we het oude.
+    // Zo kan niemand een nummer van voor het inloggen nog gebruiken.
     session_regenerate_id(true);
 
-    // Onthoud alleen het ID van de gebruiker in de sessie (NOOIT het wachtwoord)
+    // In de sessie bewaren we alleen je nummer. Geen wachtwoord en ook geen rol: de rest
+    // halen we steeds vers uit de database via current_user().
     $_SESSION['user_id'] = (int) $gebruiker['id'];
 
-    // Inloggen gelukt!
     return true;
 }
 
-// Logt de gebruiker uit
+// Logt de gebruiker uit.
 function logout(): void
 {
-    // Maak alle sessiegegevens leeg ([] is een lege lijst). Zo weet de website niet meer wie je was.
+    // Eerst alles uit het geheugen halen. Een [] is een lege lijst.
     $_SESSION = [];
 
-    // Geef de bezoeker een nieuw, leeg sessie-ID
+    // En de bezoeker een nieuw, leeg sessienummer geven.
     session_regenerate_id(true);
 }
 
-// ------------------------------------------------------------------------------
-// 3. WIE IS ER INGELOGD?
-// ------------------------------------------------------------------------------
-
-// Geeft de gegevens van de ingelogde gebruiker, of null als niemand is ingelogd
+// Geeft de gegevens van de ingelogde gebruiker terug, of null als niemand is ingelogd.
 function current_user(): ?array
 {
-    // Staat er geen user_id in de sessie? Dan is niemand ingelogd.
-    // (isset = "bestaat dit en is het niet leeg?")
+    // Staat er geen user_id in de sessie? Dan is er niemand ingelogd.
     if (!isset($_SESSION['user_id'])) {
         return null;
     }
 
-    // Haal de VERSE gegevens op uit de database.
-    // Zo merken we het meteen als een admin je rol wijzigt of je account verwijdert.
+    // We halen de gegevens elke keer opnieuw uit de database. Past een beheerder
+    // tijdens jouw sessie je rol aan, of verwijdert hij je account? Dan merken we dat
+    // direct, zonder dat je eerst opnieuw hoeft in te loggen.
     $gebruiker = find_user_by_id($_SESSION['user_id']);
 
-    // Is het account inmiddels verwijderd? Dan ben je ook niet meer ingelogd
+    // Is het account ondertussen verwijderd? Dan ben je ook niet meer ingelogd.
     if (!$gebruiker) {
         unset($_SESSION['user_id']);
         return null;
     }
 
-    // Geef de gebruiker terug
     return $gebruiker;
 }
 
-// Is er iemand ingelogd? (true of false)
+// Is er iemand ingelogd? Ja of nee.
 function is_logged_in(): bool
 {
     return current_user() !== null;
 }
 
-// ------------------------------------------------------------------------------
-// 4. TOEGANG CONTROLEREN (ROLE BASED ACCESS CONTROL)
-// ------------------------------------------------------------------------------
-// Zet bovenaan elke beveiligde pagina bijvoorbeeld:
-//   require_role('admin');                  -> alleen admins
-//   require_role(['employee', 'admin']);    -> medewerkers en admins
+// De twee functies hieronder zijn de portiers. Zet er een bovenaan een pagina en hij
+// laat alleen binnen wie er mag komen, bijvoorbeeld:
+//   require_role('admin');                 alleen admins
+//   require_role(['employee', 'admin']);   medewerkers en admins
 
-// Stuurt je naar de loginpagina als je niet bent ingelogd
+// Stuurt je naar de loginpagina als je niet bent ingelogd.
 function require_login(): void
 {
-    // Niet ingelogd? Melding klaarzetten en naar de loginpagina
     if (!is_logged_in()) {
         set_flash('error', 'Log eerst in om deze pagina te bekijken.');
         header('Location: /login.php');
@@ -319,21 +305,21 @@ function require_login(): void
     }
 }
 
-// Stuurt je weg als je niet de juiste rol hebt
+// Stuurt je weg als je niet de juiste rol hebt.
 function require_role(string|array $toegestane_rollen): void
 {
-    // Eerst controleren of je überhaupt bent ingelogd
+    // Eerst moet je sowieso ingelogd zijn.
     require_login();
 
-    // Maak er altijd een lijstje van (ook als er maar 1 rol is meegegeven, bijv. 'admin').
-    // Zo kunnen we hieronder altijd op dezelfde manier zoeken.
+    // Er is soms maar een rol meegegeven, bijvoorbeeld 'admin'. We maken er altijd een
+    // lijstje van, zodat we hieronder op een manier kunnen zoeken.
     $toegestane_rollen = (array) $toegestane_rollen;
 
-    // Welke rol heeft de ingelogde gebruiker?
+    // Welke rol heeft de ingelogde gebruiker nu?
     $rol = current_user()['role'];
 
-    // Staat jouw rol niet in het lijstje? Dan mag je hier niet komen.
-    // (in_array = "staat dit in de lijst?", het uitroepteken ervoor betekent "NIET")
+    // Staat jouw rol niet in het lijstje? Dan mag je hier niet komen. (in_array kijkt of
+    // iets in een lijst staat, en het uitroepteken ervoor betekent "niet".)
     if (!in_array($rol, $toegestane_rollen, true)) {
         set_flash('error', 'Je hebt geen rechten om die pagina te bekijken.');
         redirect_to_dashboard();
