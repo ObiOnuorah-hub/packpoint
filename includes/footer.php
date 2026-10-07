@@ -6,6 +6,10 @@
 // pagina netjes af. Een pagina eindigt daarom altijd met:
 //
 //     require_once __DIR__ . '/../../includes/footer.php';
+//
+// Waarom is dit bestand zo kort? De onderkant is voor elke pagina hetzelfde. Daarom staat
+// hij maar op één plek, en niet in elke pagina opnieuw. Wil je de voettekst aanpassen?
+// Dan doe je dat hier, en het verandert meteen op alle pagina's.
 ?>
 </main>
 
